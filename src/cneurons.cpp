@@ -38,8 +38,8 @@ class neuron
                     size[1] = ndim;
 
                     dtype data[gridlength][ndim];
-
-                    runge_kutta4< vtype > stepper;
+                    
+    				runge_kutta_cash_karp54< vtype > stepper;
 
                     for (int i = 0; i < gridlength; i++)
                     {
@@ -48,8 +48,11 @@ class neuron
                                     //if (x[j] != x[j]) throw runtime_error( "NaN");
                                     data[i][j] = x[j];
                             }
-                            stepper.do_step(ode,x,i*dt,dt);
+
+                            	stepper.do_step(ode,x,i*dt,dt);
+          
                     }
+
 
                     PyObject * pyObj = PyArray_SimpleNewFromData( 2, size, NPY_DOUBLE, data );
                     py::handle<> handle( pyObj );
@@ -164,10 +167,6 @@ class iz: public neuron
 
 class adex: public neuron
 {
-    private:
-
-        int ndim = 2;
-
     public:
             dtype C,gl,el,delt,vt,tw,a,vr,b,h,R;
             adex() 
@@ -199,32 +198,52 @@ class adex: public neuron
                 R    = 1.0;
             };
 
-            
-            boost::function<void(const vtype&, vtype&, dtype)> ode = [this]( const vtype &x , vtype &dxdt , dtype t )
+            py::object simulate(const dtype duration, const dtype dt)
                     {
-                            // Getting the applied current at time t
-                            int rt = round(t)/res;
-                            dtype I = iapp[rt];
+                            int grid = duration/dt;
+                            int rt = 0;
 
-                            if(x[0] >= h)
+                            dtype v = el;
+                            dtype w = 0.0;
+
+                            dtype dv = 0.0;
+                            dtype dw = 0.0;
+
+                            npy_intp size[2];
+                            size[0] = grid;
+                            size[1] = 2;
+
+                            dtype data[grid][2];
+
+                            for(int i = 0; i < grid; i++)
                             {
-                                dxdt[0] = vr + h;
-                                dxdt[1] = b;
+                                    rt = round(i*dt)/res;
+
+
+                                    dv = dt*(1/C*(-gl*(v-el) + gl*delt*exp((v-vt)/delt) - w + R*iapp[rt]));
+                                    dw = dt*(1/tw*(a*(v-el) - w));
+                                    
+                                    v += dv;
+                                    w += dw;
+                                    
+                                    if(v >= h)
+                                    {
+                                            data[i][0] = h;
+                                            data[i][1] = w;
+                                            v = vr;
+                                            w += b;
+                                    }
+                                    else {
+                                            data[i][0] = v;
+                                            data[i][1] = w;
+                                    }
                             }
-                            else {
 
-                                // Membrane potential
-                                dxdt[0] = (1/C*(-gl*(x[0]-el) + gl*delt*exp((x[0]-vt)/delt) - x[1] + R*iapp[rt]));
-
-                                dxdt[1] = (1/tw*(a*(x[0]-el) - x[1]));
-                            }
-                    };
-
-            py::object simulate(dtype tspan, dtype dt){
-                    vtype start = {el, 0.0};
-                    return integrate(ode, ndim, tspan, dt, start);
-            }
-
+                            PyObject * pyObj = PyArray_SimpleNewFromData( 2, size, NPY_DOUBLE, data );
+                            py::handle<> handle( pyObj );
+                            py::numeric::array arr( handle );
+                            return arr.copy();
+                    }
 };
 
 class ad2ex: public neuron
@@ -984,7 +1003,7 @@ BOOST_PYTHON_MODULE(cneurons)
         import_array();
         py::numeric::array::set_module_and_type("numpy", "ndarray");
 
-        class_<neuron, boost::noncopyable>("_neuron")
+        class_<neuron, boost::noncopyable>("neuron")
                 .def("apply_current", &neuron::apply_current);
 
         class_<iz,bases<neuron>>("iz")
