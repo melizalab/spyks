@@ -1,1 +1,1 @@
-import cneurons as models
+from cneurons import *
