@@ -249,6 +249,128 @@ class adex: public neuron
             }
 };
 
+class adex_dense: public neuron
+{
+    public:
+        dtype C,gl,el,delt,vt,tw,a,vr,b,h,R;
+        void set_equations()
+   		{
+            ndim = 2;
+            ode = [this]( const vtype &x , vtype &dxdt , dtype t )
+            {
+                // Getting the applied current at time t
+                int rt = round(t)/res;
+                dtype I = iapp[rt];
+
+                dxdt[0] = 1/C*(-gl*(x[0]-el) + gl*delt*exp((x[0]-vt)/delt) - x[1] + R*I);
+                dxdt[1] = 1/tw*(a*(x[0]-el) - x[1]);
+            };
+    	}
+        adex_dense() 
+        {
+            C    = 1.0; 
+            gl   = 30.0;
+            el   = -70.6;
+            delt = 2.0;
+            vt   = -55.0;
+            tw   = 144.0;
+            a    = 4.0;
+            vr   = -70.6;
+            b    = 80.5;
+            h    = 30.0;
+            R    = 1.0;
+            set_equations();
+        };
+        adex_dense(dtype nC,dtype ngl,dtype nel,dtype ndelt,dtype nvt,dtype ntw,dtype na,dtype nvr,dtype nb)
+        {
+            C    = nC; 
+            gl   = ngl;
+            el   = nel;
+            delt = ndelt;
+            vt   = nvt;
+            tw   = ntw;
+            a    = na;
+            vr   = nvr;
+            b    = nb;
+            h    = 30.0;
+            R    = 1.0;
+            set_equations();
+        };
+
+        py::object integrate(dtype tspan, dtype dt, vtype x) 
+    	{
+            int currpoint = 0;
+            int gridlength = tspan/dt;
+
+            npy_intp size[1];
+            size[0] = gridlength;
+            size[1] = ndim;
+
+            dtype data[gridlength*ndim];
+
+            auto write = [this, &data, dt](const vtype &x, const double t)
+            {
+                int i = round(t/dt);
+                for (int j = 0; j < ndim; j++){
+                    data[i*ndim+j] = x[j];
+                }
+            };
+
+			auto stepper = make_dense_output( 1.0e-4 , 1.0e-4 , runge_kutta_dopri5<vtype>() );				
+			double t = 0.0;
+            stepper.initialize(x,t,dt);
+
+            int i = 1;
+            double target = 0.0;
+
+            vtype reset;
+            vtype peak;
+
+            while((stepper.current_time() < tspan))
+            {
+            	target += dt;
+
+            	while(stepper.current_time() <= target)
+            	{
+					stepper.do_step(ode);
+					
+					if(stepper.current_state()[0] >= h)
+					{
+						peak = {h, stepper.current_state()[1]};
+						write(peak, target);
+
+						reset = {vr,stepper.current_state()[1]+b};
+						write(reset, target + dt);
+
+						target += dt*2;
+
+						stepper.initialize(reset, target - dt, dt);
+					}
+				}
+
+				stepper.calc_state(target,x);
+
+				write(x,target);
+				
+            }
+
+
+            double (*data2)[gridlength][ndim] = reinterpret_cast<double (*)[gridlength][ndim]>(data);
+
+            PyObject* pyObj = PyArray_SimpleNewFromData( 2, size, NPY_DOUBLE, data2 );
+            py::handle<> handle( pyObj );
+            py::numeric::array arr( handle );
+            return arr.copy();
+
+		}
+
+        py::object simulate(dtype tspan, dtype dt)
+        {
+            vtype start = {el, 0.0};
+            return integrate(tspan, dt, start);
+        }
+};
+
 class ad2ex: public neuron
 {
     public:
@@ -993,6 +1115,20 @@ BOOST_PYTHON_MODULE(cneurons)
                 .def_readwrite("b", &adex::b)
                 .def_readwrite("h", &adex::h)
                 .def_readwrite("R", &adex::R);
+        class_<adex_dense,bases<neuron>>("adex_dense")
+	        .def(init<dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype>())
+	        .def("simulate", &adex_dense::simulate)
+	        .def_readwrite("C", &adex_dense::C)
+	        .def_readwrite("gl", &adex_dense::gl)
+	        .def_readwrite("el", &adex_dense::el)
+	        .def_readwrite("delt", &adex_dense::delt)
+	        .def_readwrite("vt", &adex_dense::vt)
+	        .def_readwrite("tw", &adex_dense::tw)
+	        .def_readwrite("a", &adex_dense::a)
+	        .def_readwrite("vr", &adex_dense::vr)
+	        .def_readwrite("b", &adex_dense::b)
+	        .def_readwrite("h", &adex_dense::h)
+	        .def_readwrite("R", &adex_dense::R);
 
         class_<ad2ex,bases<neuron>>("ad2ex")
                 .def(init<dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype>())
