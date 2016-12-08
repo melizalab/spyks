@@ -33,7 +33,38 @@ class neuron
             iapp = reinterpret_cast<double*>(PyArray_DATA(niapp_arrayob));
 
         }
-        py::object integrate(PyObject* niapp, dtype nres, dtype tspan, dtype dt, py::list init_list) 
+
+    	py::object integrate(dtype tspan, dtype dt, vtype x) 
+        {
+                int currpoint = 0;
+                int gridlength = tspan/dt;
+
+                npy_intp size[1];
+                size[0] = gridlength;
+                size[1] = ndim;
+
+                dtype data[gridlength*ndim];
+
+                auto write = [this, &data, dt](const vtype &x, const double t)
+                {
+                    int i = round(t/dt);
+                    for (int j = 0; j < ndim; j++){
+                        data[i*ndim+j] = x[j];
+                    }
+                };
+
+                runge_kutta_dopri5<vtype> stepper;
+
+                integrate_const( make_dense_output( 1.0e-4 , 1.0e-4, stepper), ode, x, 0.0, tspan, dt, write);
+
+                double (*data2)[gridlength][ndim] = reinterpret_cast<double (*)[gridlength][ndim]>(data);
+
+                PyObject* pyObj = PyArray_SimpleNewFromData( 2, size, NPY_DOUBLE, data2 );
+                py::handle<> handle( pyObj );
+                py::numeric::array arr( handle );
+                return arr.copy();
+        }
+        py::object integrate2(PyObject* niapp, dtype nres, dtype tspan, dtype dt, py::list init_list) 
         {
                 res = nres;
 
@@ -108,130 +139,148 @@ class neuron
         }
 };
 
-class neuron_reset: public neuron
-{
-	protected:
-		virtual bool reset_condition(const vtype &x){};
-		virtual vtype prereset(const vtype &x){};
-		virtual vtype reset(const vtype &x){};
-
-	public:
-		void write(const vtype &x, const double t, const double dt, dtype *data)
-		{
-			int i = round(t/dt);
-			for (int j = 0; j < ndim; j++)
-			{
-				data[i*ndim+j] = x[j];
-			}
-		}
-			
-		py::object integrate(dtype tspan, dtype dt, vtype x) 
-		{
-			int currpoint = 0;
-			int gridlength = tspan/dt;
-
-			npy_intp size[1];
-			size[0] = gridlength;
-			size[1] = ndim;
-
-			dtype data[gridlength*ndim];
-
-			auto stepper =  euler<vtype>();				
-			double t = 0.0;
-
-
-			int i = 1;
-			double target = 0.0;
-			
-			py::list spikes;
-			while(t < tspan)
-			{
-
-				stepper.do_step(ode,x,t,dt);
-
-					
-				if(reset_condition(x))
-				{
-					spikes.append(t);
-					write(prereset(x), t, dt, data);
-					x = reset(x);					
-					t += dt;
-				}
-			
-				write(x,t, dt, data);
-				t += dt;
-			}
-
-
-			double (*data2)[gridlength][ndim] = reinterpret_cast<double (*)[gridlength][ndim]>(data);
-
-			PyObject* pyObj = PyArray_SimpleNewFromData( 2, size, NPY_DOUBLE, data2 );
-			py::handle<> handle( pyObj );
-			py::numeric::array arr( handle );
-			return py::make_tuple(arr,spikes);
-
-		}
-};
-
-class iz: public neuron_reset
+class iz: public neuron
 {
     public:
 		dtype a,b,c,d,h;
-		void set_equations()
-   		{
-            ndim = 2;
-            ode = [this]( const vtype &x , vtype &dxdt , dtype t )
-            {
-                // Getting the applied current at time t
-                int rt = round(t)/res;
-                dtype I = iapp[rt];
-
-                dxdt[0] = 0.04*x[0]*x[0] + 5*x[0] + 140 - x[1] + I;
-                dxdt[1] = a*(b*x[0] - x[1]);
-            };
-    	}
-		iz() 
-		{
-			a = 0.02;
-			b = 0.2;
-			c = -65.0;
-			d = 8.0;
-			h = 30.0;
-			set_equations();
+		iz() {
+		        a = 0.02;
+		        b = 0.2;
+		        c = -65.0;
+		        d = 8.0;
+		        h = 30.0;
 		};
 		iz(dtype na, dtype nb, dtype nc, dtype nd, dtype nh)
-		{
-			a = na;
-			b = nb;
-			c = nc;
-			d = nd;
-			h = nh;
-			set_equations();
-		};
-		
-		bool reset_condition(const vtype &x)
-		{
-			return x[0] >= h;
-		}
-		
-		vtype prereset(const vtype &x)
-		{
-			return {h,x[1]};
-		}
-		
-		vtype reset(const vtype &x) 
-		{
-			return {c,x[1]+d};
-		}
+		        {
+		                a = na;
+		                b = nb;
+		                c = nc;
+		                d = nd;
+		                h = nh;
+		        };
 
-		py::object simulate(const dtype tspan, const dtype dt)
-		{	
-			vtype start = {c, -14.0};
-            return integrate(tspan, dt, start);
-		}
+		py::object simulate(const dtype duration, const dtype dt)
+		        {
+		                int grid = duration/dt;
+		                int rt = 0;
+
+		                dtype v = c;
+		                dtype u = -14.0;
+
+		                npy_intp size[2];
+		                size[0] = grid;
+		                size[1] = 2;
+
+		                dtype data[grid][2];
+
+		                for(int i = 0; i < grid; i++)
+		                {
+		                        rt = round(i*dt)/res;
+
+		                        v += dt*(0.04*v*v + 5*v + 140 - u + iapp[rt]);
+		                        u += dt*(a*(b*v - u));
+
+		                        if(v >= h)
+		                        {
+		                                data[i][0] = h;
+		                                data[i][1] = u;
+		                                v = c;
+		                                u = u + d;
+		                        }
+		                        else {
+		                                data[i][0] = v;
+		                                data[i][1] = u;
+		                        }
+		                }
+
+		                PyObject * pyObj = PyArray_SimpleNewFromData( 2, size, NPY_DOUBLE, data );
+		                py::handle<> handle( pyObj );
+		                py::numeric::array arr( handle );
+		                return arr.copy();
+		        }
+};
+class adex: public neuron
+{
+    public:
+            dtype C,gl,el,delt,vt,tw,a,vr,b,h,R;
+            adex() 
+            {
+                C    = 1.0; 
+                gl   = 30.0;
+                el   = -70.6;
+                delt = 2.0;
+                vt   = -55.0;
+                tw   = 144.0;
+                a    = 4.0;
+                vr   = -70.6;
+                b    = 80.5;
+                h    = 30.0;
+                R    = 1.0;
+            };
+            adex(dtype nC,dtype ngl,dtype nel,dtype ndelt,dtype nvt,dtype ntw,dtype na,dtype nvr,dtype nb)
+            {
+                C    = nC; 
+                gl   = ngl;
+                el   = nel;
+                delt = ndelt;
+                vt   = nvt;
+                tw   = ntw;
+                a    = na;
+                vr   = nvr;
+                b    = nb;
+                h    = 30.0;
+                R    = 1.0;
+            };
+
+            py::object simulate(const dtype duration, const dtype dt)
+            {
+                int grid = duration/dt;
+                int rt = 0;
+
+                dtype v = el;
+                dtype w = 0.0;
+
+                dtype dv = 0.0;
+                dtype dw = 0.0;
+
+                npy_intp size[2];
+                size[0] = grid;
+                size[1] = 2;
+
+                dtype data[grid][2];
+
+                for(int i = 0; i < grid; i++)
+                {
+                        rt = round(i*dt)/res;
+
+
+                        dv = dt*(1/C*(-gl*(v-el) + gl*delt*exp((v-vt)/delt) - w + R*iapp[rt]));
+                        dw = dt*(1/tw*(a*(v-el) - w));
+                        
+                        v += dv;
+                        w += dw;
+                        
+                        if(v >= h)
+                        {
+                                data[i][0] = h;
+                                data[i][1] = w;
+                                v = vr;
+                                w += b;
+                        }
+                        else {
+                                data[i][0] = v;
+                                data[i][1] = w;
+                        }
+                }
+
+                PyObject * pyObj = PyArray_SimpleNewFromData( 2, size, NPY_DOUBLE, data );
+                py::handle<> handle( pyObj );
+                py::numeric::array arr( handle );
+                return arr.copy();
+            }
 };
 
-class adex: public neuron_reset
+class adex_dense: public neuron
 {
     public:
         dtype C,gl,el,delt,vt,tw,a,vr,b,h,R;
@@ -248,9 +297,9 @@ class adex: public neuron_reset
                 dxdt[1] = 1/tw*(a*(x[0]-el) - x[1]);
             };
     	}
-        adex() 
+        adex_dense() 
         {
-            C    = 250.0; 
+            C    = 1.0; 
             gl   = 30.0;
             el   = -70.6;
             delt = 2.0;
@@ -263,7 +312,7 @@ class adex: public neuron_reset
             R    = 1.0;
             set_equations();
         };
-        adex(dtype nC,dtype ngl,dtype nel,dtype ndelt,dtype nvt,dtype ntw,dtype na,dtype nvr,dtype nb)
+        adex_dense(dtype nC,dtype ngl,dtype nel,dtype ndelt,dtype nvt,dtype ntw,dtype na,dtype nvr,dtype nb)
         {
             C    = nC; 
             gl   = ngl;
@@ -278,20 +327,186 @@ class adex: public neuron_reset
             R    = 1.0;
             set_equations();
         };
-		
-		bool reset_condition(const vtype &x)
-		{
-			return x[0] >= h;
+
+        py::object integrate(dtype tspan, dtype dt, vtype x) 
+    	{
+            int currpoint = 0;
+            int gridlength = tspan/dt;
+
+            npy_intp size[1];
+            size[0] = gridlength;
+            size[1] = ndim;
+
+            dtype data[gridlength*ndim];
+
+            auto write = [this, &data, dt](const vtype &x, const double t)
+            {
+                int i = round(t/dt);
+                for (int j = 0; j < ndim; j++){
+                    data[i*ndim+j] = x[j];
+                }
+            };
+
+			auto stepper = make_dense_output( 1.0e-4 , 1.0e-4 , runge_kutta_dopri5<vtype>() );				
+			double t = 0.0;
+            stepper.initialize(x,t,dt);
+
+            int i = 1;
+            double target = 0.0;
+
+            vtype reset;
+            vtype peak;
+
+            while((stepper.current_time() < tspan))
+            {
+            	target += dt;
+
+            	while(stepper.current_time() <= target)
+            	{
+					stepper.do_step(ode);
+					
+					if(stepper.current_state()[0] >= h)
+					{
+						peak = {h, stepper.current_state()[1]};
+						write(peak, target);
+
+						reset = {vr,stepper.current_state()[1]+b};
+						write(reset, target + dt);
+
+						target += dt*2;
+
+						stepper.initialize(reset, target - dt, dt);
+					}
+				}
+
+				stepper.calc_state(target,x);
+
+				write(x,target);
+				
+            }
+
+
+            double (*data2)[gridlength][ndim] = reinterpret_cast<double (*)[gridlength][ndim]>(data);
+
+            PyObject* pyObj = PyArray_SimpleNewFromData( 2, size, NPY_DOUBLE, data2 );
+            py::handle<> handle( pyObj );
+            py::numeric::array arr( handle );
+            return arr.copy();
+
 		}
-		
-		vtype prereset(const vtype &x)
-		{	
-			return {h,x[1]};
-		}
-		
-		vtype reset(const vtype& x)
-		{ 	
-			return {vr,x[1]+b};
+
+        py::object simulate(dtype tspan, dtype dt)
+        {
+            vtype start = {el, 0.0};
+            return integrate(tspan, dt, start);
+        }
+};
+
+class adex_euler: public neuron
+{
+    public:
+        dtype C,gl,el,delt,vt,tw,a,vr,b,h,R;
+        void set_equations()
+   		{
+            ndim = 2;
+            ode = [this]( const vtype &x , vtype &dxdt , dtype t )
+            {
+                // Getting the applied current at time t
+                int rt = round(t)/res;
+                dtype I = iapp[rt];
+
+                dxdt[0] = 1/C*(-gl*(x[0]-el) + gl*delt*exp((x[0]-vt)/delt) - x[1] + R*I);
+                dxdt[1] = 1/tw*(a*(x[0]-el) - x[1]);
+            };
+    	}
+        adex_euler() 
+        {
+            C    = 1.0; 
+            gl   = 30.0;
+            el   = -70.6;
+            delt = 2.0;
+            vt   = -55.0;
+            tw   = 144.0;
+            a    = 4.0;
+            vr   = -70.6;
+            b    = 80.5;
+            h    = 30.0;
+            R    = 1.0;
+            set_equations();
+        };
+        adex_euler(dtype nC,dtype ngl,dtype nel,dtype ndelt,dtype nvt,dtype ntw,dtype na,dtype nvr,dtype nb)
+        {
+            C    = nC; 
+            gl   = ngl;
+            el   = nel;
+            delt = ndelt;
+            vt   = nvt;
+            tw   = ntw;
+            a    = na;
+            vr   = nvr;
+            b    = nb;
+            h    = 30.0;
+            R    = 1.0;
+            set_equations();
+        };
+
+        py::object integrate(dtype tspan, dtype dt, vtype x) 
+    	{
+            int currpoint = 0;
+            int gridlength = tspan/dt;
+
+            npy_intp size[1];
+            size[0] = gridlength;
+            size[1] = ndim;
+
+            dtype data[gridlength*ndim];
+
+            auto write = [this, &data, dt](const vtype &x, const double t)
+            {
+                int i = round(t/dt);
+                for (int j = 0; j < ndim; j++){
+                    data[i*ndim+j] = x[j];
+                }
+            };
+
+			auto stepper =  euler<vtype>();				
+			double t = 0.0;
+
+
+            int i = 1;
+            double target = 0.0;
+
+            vtype reset;
+            vtype peak;
+
+            while(t < tspan)
+            {
+
+            	stepper.do_step(ode,x,t,dt);
+
+					
+				if(x[0] >= h)
+				{
+					peak = {h, x[1]};
+					write(peak, t);
+
+					t += dt;
+
+					x = {vr,x[1]+b};
+				}
+			
+				write(x,t);
+				t += dt;
+            }
+
+
+            double (*data2)[gridlength][ndim] = reinterpret_cast<double (*)[gridlength][ndim]>(data);
+
+            PyObject* pyObj = PyArray_SimpleNewFromData( 2, size, NPY_DOUBLE, data2 );
+            py::handle<> handle( pyObj );
+            py::numeric::array arr( handle );
+            return arr.copy();
+
 		}
 
         py::object simulate(dtype tspan, dtype dt)
@@ -307,7 +522,7 @@ class ad2ex: public neuron
             dtype C,gl,el,delt,vt0,tw,a,vr,b,tt,c,h,R;
             ad2ex() 
             {
-                C    = 250.0; 
+                C    = 1.0; 
                 gl   = 30.0;
                 el   = -70.6;
                 delt = 2.0;
@@ -742,6 +957,13 @@ class hr2: public neuron
 
             set_equations();
         };
+
+
+        py::object simulate(dtype tspan, dtype dt)
+        {
+            vtype start = {-2.0, 0.0};
+            return integrate(tspan, dt, start);
+        }
 };
 
 class hh: public neuron
@@ -838,6 +1060,34 @@ class hh: public neuron
             }
 };
 
+/*
+class pasiv: public neuron
+{
+    private:
+            int ndim = 2;
+            dtype _ge, _gm, _Cm, _Ce, _Vr;
+    public:
+            pasiv()
+                    : _ge(1000 / 10), _gm(1000 / 500), _Cm(50), _Ce(5), _Vr(-60) {}
+            pasiv(dtype Cm, dtype Ce, dtype Rm, dtype Re, dtype Vr)
+                    : _ge(1000 / Re), _gm(1000 / Rm), _Cm(Cm), _Ce(Ce), _Vr(Vr) {}
+
+            boost::function<void(vtype const &, vtype &, dtype)> ode =
+                    [this]( vtype const & x , vtype & dxdt , dtype t ) {
+                    int i = round(t / res);
+                    dtype I = iapp[i];
+                    dtype Vin = x[0];
+                    dtype Vm  = x[1];
+                    dxdt[0] = (I - (Vin - Vm) * _ge) / _Ce;
+                    dxdt[1] = ((Vin - Vm) * _ge - (Vm - _Vr) * _gm) / _Cm;
+            };
+            py::object simulate(dtype tspan, dtype dt, dtype init) {
+                    vtype start = {init, init}; // initial
+                    return integrate(ode, ndim, tspan, dt, start);
+            }
+
+};
+*/
 
 class matex: public neuron
 {
@@ -845,7 +1095,7 @@ class matex: public neuron
             dtype C,gl,el,delt,vt0,tw,a,vr,b,h,R,l,m,n;
             matex() 
             {
-                C    = 250.0; 
+                C    = 1.0; 
                 gl   = 30.0;
                 el   = -70.6;
                 delt = 2.0;
@@ -879,82 +1129,82 @@ class matex: public neuron
             };
 
             py::object simulate(const dtype duration, const dtype dt)
-			{
-					int grid = duration/dt;
+                    {
+                            int grid = duration/dt;
 
-				int rt = 0;
+                            int rt = 0;
 
-				dtype v  = el;
-				dtype w  = 0.0;
-				dtype vt = vt0;
+                            dtype v  = el;
+                            dtype w  = 0.0;
+                            dtype vt = vt0;
+ 
 
+                            dtype vt1 = 0;
+                            dtype vt2 = 0;
+                            dtype vt3 = 0;
 
-				dtype vt1 = 0;
-				dtype vt2 = 0;
-				dtype vt3 = 0;
+                            dtype dvt1 = 0;
+                            dtype dvt2 = 0;
+                            dtype dvt3 = 0;
+                            dtype ddvt3 = 0;
 
-				dtype dvt1 = 0;
-				dtype dvt2 = 0;
-				dtype dvt3 = 0;
-				dtype ddvt3 = 0;
+                            dtype dv  = 0.0;
+                            dtype dw  = 0.0;
 
-				dtype dv  = 0.0;
-				dtype dw  = 0.0;
+                            npy_intp size[3];
+                            size[0] = grid;
+                            size[1] = 3;
 
-				npy_intp size[3];
-				size[0] = grid;
-				size[1] = 3;
+                            dtype data[grid][3];
 
-				dtype data[grid][3];
+                            for(int i = 0; i < grid; i++)
+                            {
+                                    rt = round(i*dt)/res;
 
-				for(int i = 0; i < grid; i++)
-				{
-						rt = round(i*dt)/res;
+                                    dvt1 = dt*(-vt1/10);
+                                    dvt2 = dt*(-vt2/200);
+                                    dvt3 = dt*(-vt3/5 + ddvt3);
+                                    ddvt3 = ddvt3 + dt*(-(vt3/5 + dvt3)/5) + n*dv;
 
-						dvt1 = dt*(-vt1/10);
-						dvt2 = dt*(-vt2/200);
-						dvt3 = dt*(-vt3/5 + ddvt3);
-						ddvt3 = ddvt3 + dt*(-(vt3/5 + dvt3)/5) + n*dv;
-
-						dv = dt*(1/C*(-gl*(v-el) + gl*delt*exp((v-vt)/delt) - w + R*iapp[rt]));
-						dw = dt*(1/tw*(a*(v-el) - w));
-
-
-						vt1 = vt1 + dvt1;
-						vt2 = vt2 + dvt2;
-						vt3 = vt3 + dvt3;
+                                    dv = dt*(1/C*(-gl*(v-el) + gl*delt*exp((v-vt)/delt) - w + R*iapp[rt]));
+                                    dw = dt*(1/tw*(a*(v-el) - w));
 
 
-						v  += dv;
-						w  += dw;
-						vt = vt0 + vt1 + vt2 + vt3;
-					   
-						if(v >= h)
-						{
-								data[i][0] = h;
-								data[i][1] = w;
-								data[i][2] = vt;
+                                    vt1 = vt1 + dvt1;
+                                    vt2 = vt2 + dvt2;
+                                    vt3 = vt3 + dvt3;
 
-								dv = dt*(h + vr);
 
-								v = vr;
-								w += b;
-								
-								vt1 += l;
-								vt2 += m;
-						}
-						else {
-								data[i][0] = v;
-								data[i][1] = w;
-								data[i][2] = vt;
-						}
-				}
+                                    v  += dv;
+                                    w  += dw;
+                                    vt = vt0 + vt1 + vt2 + vt3;
+                                   
+                                    if(v >= h)
+                                    {
+                                            data[i][0] = h;
+                                            data[i][1] = w;
+                                            data[i][2] = vt;
 
-				PyObject * pyObj = PyArray_SimpleNewFromData( 2, size, NPY_DOUBLE, data );
-				py::handle<> handle( pyObj );
-				py::numeric::array arr( handle );
-				return arr.copy();
-			}
+                                            dv = dt*(h + vr);
+
+                                            v = vr;
+                                            w += b;
+                                            
+                                            vt1 += l;
+                                            vt2 += m;
+                                    }
+                                    else {
+                                            data[i][0] = v;
+                                            data[i][1] = w;
+                                            data[i][2] = vt;
+                                    }
+                            }
+
+                            PyObject * pyObj = PyArray_SimpleNewFromData( 2, size, NPY_DOUBLE, data );
+                            py::handle<> handle( pyObj );
+                            py::numeric::array arr( handle );
+                            return arr.copy();
+                    }
 };
 
 BOOST_PYTHON_MODULE(cneurons)
@@ -965,7 +1215,7 @@ BOOST_PYTHON_MODULE(cneurons)
 
         class_<neuron, boost::noncopyable>("_neuron")
         	.def("apply_current",&neuron::apply_current)
-        	.def("integrate",&neuron::integrate);
+        	.def("integrate2",&neuron::integrate2);
 
         class_<iz,bases<neuron>>("iz")
                 .def(init<dtype, dtype, dtype, dtype, dtype>())
@@ -991,6 +1241,39 @@ BOOST_PYTHON_MODULE(cneurons)
                 .def_readwrite("b", &adex::b)
                 .def_readwrite("h", &adex::h)
                 .def_readwrite("R", &adex::R);
+
+        class_<adex_dense,bases<neuron>>("adex_dense")
+	        .def(init<dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype>())
+	        .def("simulate", &adex_dense::simulate)
+	        .def_readwrite("C", &adex_dense::C)
+	        .def_readwrite("gl", &adex_dense::gl)
+	        .def_readwrite("el", &adex_dense::el)
+	        .def_readwrite("delt", &adex_dense::delt)
+	        .def_readwrite("vt", &adex_dense::vt)
+	        .def_readwrite("tw", &adex_dense::tw)
+	        .def_readwrite("a", &adex_dense::a)
+	        .def_readwrite("vr", &adex_dense::vr)
+	        .def_readwrite("b", &adex_dense::b)
+	        .def_readwrite("h", &adex_dense::h)
+	        .def_readwrite("R", &adex_dense::R);
+
+
+
+
+        class_<adex_euler,bases<neuron>>("adex_euler")
+	        .def(init<dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype>())
+	        .def("simulate", &adex_euler::simulate)
+	        .def_readwrite("C", &adex_euler::C)
+	        .def_readwrite("gl", &adex_euler::gl)
+	        .def_readwrite("el", &adex_euler::el)
+	        .def_readwrite("delt", &adex_euler::delt)
+	        .def_readwrite("vt", &adex_euler::vt)
+	        .def_readwrite("tw", &adex_euler::tw)
+	        .def_readwrite("a", &adex_euler::a)
+	        .def_readwrite("vr", &adex_euler::vr)
+	        .def_readwrite("b", &adex_euler::b)
+	        .def_readwrite("h", &adex_euler::h)
+	        .def_readwrite("R", &adex_euler::R);
 
         class_<ad2ex,bases<neuron>>("ad2ex")
                 .def(init<dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype>())
@@ -1068,6 +1351,7 @@ BOOST_PYTHON_MODULE(cneurons)
 
         class_<hr2,bases<neuron>>("hr2")
                 .def(init<dtype, dtype, dtype, dtype, dtype, dtype, dtype>())
+                .def("simulate", &hr2::simulate)
                 .def_readwrite("a", &hr2::a)
                 .def_readwrite("b", &hr2::b)
                 .def_readwrite("c", &hr2::c)
