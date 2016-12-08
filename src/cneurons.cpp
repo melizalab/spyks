@@ -16,60 +16,53 @@ typedef std::vector<dtype> vtype;
 
 class neuron 
 {
-    protected:
-        int ndim;
-        double* iapp;
-        dtype res;
-        boost::function<void(const vtype&, vtype&, dtype)> ode;
-
     public:
-        void apply_current(PyObject* niapp, dtype nres) 
-        {
-
-            res = nres;
-
-            PyArrayObject* niapp_arrayob= reinterpret_cast<PyArrayObject*>(niapp);
-            iapp = reinterpret_cast<double*>(PyArray_DATA(niapp_arrayob));
-
+        dtype res;
+        vtype iapp; // applied current
+        void apply_current(py::numeric::array newcurr, dtype nres) {
+                iapp.clear();
+                res = nres;
+                for (int i = 0; i < len(newcurr); ++i) {
+                        iapp.push_back(py::extract<dtype>(newcurr[i]));
+                }
         }
-        py::object integrate(dtype tspan, dtype dt, vtype x) 
-        {
+        py::object integrate(boost::function<void(const vtype&, vtype&, dtype)> ode, int ndim, dtype tspan, dtype dt, vtype x) {
                 int currpoint = 0;
                 int gridlength = tspan/dt;
 
-                npy_intp size[1];
+                int nsteps = 0;
+                int maxsteps = gridlength * 20;
+
+                npy_intp size[2];
                 size[0] = gridlength;
                 size[1] = ndim;
 
-                dtype data[gridlength*ndim];
+                dtype data[gridlength][ndim];
 
-                auto write = [this, &data, dt](const vtype &x, const double t)
+                runge_kutta4< vtype > stepper;
+
+                for (int i = 0; i < gridlength; i++)
                 {
-                    int i = round(t/dt);
-                    for (int j = 0; j < ndim; j++){
-                        data[i*ndim+j] = x[j];
-                    }
-                };
+                        for (int j = 0; j < ndim; j++)
+                        {
+                                //if (x[j] != x[j]) throw runtime_error( "NaN");
+                                data[i][j] = x[j];
+                        }
+                        stepper.do_step(ode,x,i*dt,dt);
+                }
 
-                runge_kutta_dopri5<vtype> stepper;
-
-                integrate_const( make_dense_output( 1.0e-6 , 1.0e-6, stepper), ode, x, 0.0, tspan, dt, write);
-
-                double (*data2)[gridlength][ndim] = reinterpret_cast<double (*)[gridlength][ndim]>(data);
-
-                PyObject* pyObj = PyArray_SimpleNewFromData( 2, size, NPY_DOUBLE, data2 );
+                PyObject * pyObj = PyArray_SimpleNewFromData( 2, size, NPY_DOUBLE, data );
                 py::handle<> handle( pyObj );
                 py::numeric::array arr( handle );
                 return arr.copy();
 
         }
-        py::object calc_modelerr(boost::function<void(const vtype&, vtype&, dtype)> ode, int ndim, py::numeric::array data, dtype dt) 
-        {
+        py::object calc_modelerr(boost::function<void(const vtype&, vtype&, dtype)> ode, int ndim, py::numeric::array data, dtype dt) {
                 npy_intp size[1];
                 size[0] = len(data)-1;
 
                 dtype out[len(data)-1];
-                runge_kutta4<vtype> stepper;
+                runge_kutta4< vtype > stepper;
 
                 vtype curr(ndim);
                 vtype nex(ndim);
@@ -92,181 +85,88 @@ class neuron
 
                 }
 
-                PyObject* pyObj = PyArray_SimpleNewFromData( 1, size, NPY_DOUBLE, out );
+                PyObject * pyObj = PyArray_SimpleNewFromData( 1, size, NPY_DOUBLE, out );
                 py::handle<> handle( pyObj );
                 py::numeric::array arr( handle );
                 return arr.copy();
+
         }
 };
 
 class iz: public neuron
 {
     public:
-            dtype a,b,c,d,h;
-            iz() {
-                    a = 0.02;
-                    b = 0.2;
-                    c = -65.0;
-                    d = 8.0;
-                    h = 30.0;
-            };
-            iz(dtype na, dtype nb, dtype nc, dtype nd)
-                    {
-                            a = na;
-                            b = nb;
-                            c = nc;
-                            d = nd;
-                            h = 30.0;
-                    };
-            iz(dtype na, dtype nb, dtype nc, dtype nd, dtype nh)
-                    {
-                            a = na;
-                            b = nb;
-                            c = nc;
-                            d = nd;
-                            h = nh;
-                    };
+        dtype a,b,c,d,h;
+        iz() {
+                a = 0.02;
+                b = 0.2;
+                c = -65.0;
+                d = 8.0;
+                h = 30.0;
+        };
+        iz(dtype na, dtype nb, dtype nc, dtype nd)
+                {
+                        a = na;
+                        b = nb;
+                        c = nc;
+                        d = nd;
+                        h = 30.0;
+                };
+        iz(dtype na, dtype nb, dtype nc, dtype nd, dtype nh)
+                {
+                        a = na;
+                        b = nb;
+                        c = nc;
+                        d = nd;
+                        h = nh;
+                };
 
-            py::object simulate(const dtype duration, const dtype dt)
-                    {
-                            int grid = duration/dt;
-                            int rt = 0;
+        py::object simulate(const dtype duration, const dtype dt)
+                {
+                        int grid = duration/dt;
+                        int rt = 0;
 
-                            dtype v = c;
-                            dtype u = -14.0;
+                        dtype v = c;
+                        dtype u = -14.0;
 
-                            npy_intp size[2];
-                            size[0] = grid;
-                            size[1] = 2;
+                        npy_intp size[2];
+                        size[0] = grid;
+                        size[1] = 2;
 
-                            dtype data[grid][2];
+                        dtype data[grid][2];
 
-                            for(int i = 0; i < grid; i++)
-                            {
-                                    rt = round(i*dt)/res;
+                        for(int i = 0; i < grid; i++)
+                        {
+                                rt = round(i*dt)/res;
 
-                                    v += dt*(0.04*v*v + 5*v + 140 - u + iapp[rt]);
-                                    u += dt*(a*(b*v - u));
+                                v += dt*(0.04*v*v + 5*v + 140 - u + iapp[rt]);
+                                u += dt*(a*(b*v - u));
 
-                                    if(v >= h)
-                                    {
-                                            data[i][0] = h;
-                                            data[i][1] = u;
-                                            v = c;
-                                            u = u + d;
-                                    }
-                                    else {
-                                            data[i][0] = v;
-                                            data[i][1] = u;
-                                    }
-                            }
+                                if(v >= h)
+                                {
+                                        data[i][0] = h;
+                                        data[i][1] = u;
+                                        v = c;
+                                        u = u + d;
+                                }
+                                else {
+                                        data[i][0] = v;
+                                        data[i][1] = u;
+                                }
+                        }
 
-                            PyObject * pyObj = PyArray_SimpleNewFromData( 2, size, NPY_DOUBLE, data );
-                            py::handle<> handle( pyObj );
-                            py::numeric::array arr( handle );
-                            return arr.copy();
-                    }
+                        PyObject * pyObj = PyArray_SimpleNewFromData( 2, size, NPY_DOUBLE, data );
+                        py::handle<> handle( pyObj );
+                        py::numeric::array arr( handle );
+                        return arr.copy();
+                }
 };
 
 class adex: public neuron
 {
     public:
-            dtype C,gl,el,delt,vt,tw,a,vr,b,h,R;
-            adex() 
-            {
-                C    = 1.0; 
-                gl   = 30.0;
-                el   = -70.6;
-                delt = 2.0;
-                vt   = -55.0;
-                tw   = 144.0;
-                a    = 4.0;
-                vr   = -70.6;
-                b    = 80.5;
-                h    = 30.0;
-                R    = 1.0;
-            };
-            adex(dtype nC,dtype ngl,dtype nel,dtype ndelt,dtype nvt,dtype ntw,dtype na,dtype nvr,dtype nb)
-            {
-                C    = nC; 
-                gl   = ngl;
-                el   = nel;
-                delt = ndelt;
-                vt   = nvt;
-                tw   = ntw;
-                a    = na;
-                vr   = nvr;
-                b    = nb;
-                h    = 30.0;
-                R    = 1.0;
-            };
-
-            py::object simulate(const dtype duration, const dtype dt)
-            {
-                int grid = duration/dt;
-                int rt = 0;
-
-                dtype v = el;
-                dtype w = 0.0;
-
-                dtype dv = 0.0;
-                dtype dw = 0.0;
-
-                npy_intp size[2];
-                size[0] = grid;
-                size[1] = 2;
-
-                dtype data[grid][2];
-
-                for(int i = 0; i < grid; i++)
-                {
-                        rt = round(i*dt)/res;
-
-
-                        dv = dt*(1/C*(-gl*(v-el) + gl*delt*exp((v-vt)/delt) - w + R*iapp[rt]));
-                        dw = dt*(1/tw*(a*(v-el) - w));
-                        
-                        v += dv;
-                        w += dw;
-                        
-                        if(v >= h)
-                        {
-                                data[i][0] = h;
-                                data[i][1] = w;
-                                v = vr;
-                                w += b;
-                        }
-                        else {
-                                data[i][0] = v;
-                                data[i][1] = w;
-                        }
-                }
-
-                PyObject * pyObj = PyArray_SimpleNewFromData( 2, size, NPY_DOUBLE, data );
-                py::handle<> handle( pyObj );
-                py::numeric::array arr( handle );
-                return arr.copy();
-            }
-};
-
-class adex_dense: public neuron
-{
-    public:
         dtype C,gl,el,delt,vt,tw,a,vr,b,h,R;
-        void set_equations()
-   		{
-            ndim = 2;
-            ode = [this]( const vtype &x , vtype &dxdt , dtype t )
-            {
-                // Getting the applied current at time t
-                int rt = round(t)/res;
-                dtype I = iapp[rt];
-
-                dxdt[0] = 1/C*(-gl*(x[0]-el) + gl*delt*exp((x[0]-vt)/delt) - x[1] + R*I);
-                dxdt[1] = 1/tw*(a*(x[0]-el) - x[1]);
-            };
-    	}
-        adex_dense() 
+        adex() 
         {
             C    = 1.0; 
             gl   = 30.0;
@@ -279,9 +179,8 @@ class adex_dense: public neuron
             b    = 80.5;
             h    = 30.0;
             R    = 1.0;
-            set_equations();
         };
-        adex_dense(dtype nC,dtype ngl,dtype nel,dtype ndelt,dtype nvt,dtype ntw,dtype na,dtype nvr,dtype nb)
+        adex(dtype nC,dtype ngl,dtype nel,dtype ndelt,dtype nvt,dtype ntw,dtype na,dtype nvr,dtype nb)
         {
             C    = nC; 
             gl   = ngl;
@@ -294,81 +193,54 @@ class adex_dense: public neuron
             b    = nb;
             h    = 30.0;
             R    = 1.0;
-            set_equations();
         };
 
-        py::object integrate(dtype tspan, dtype dt, vtype x) 
-    	{
-            int currpoint = 0;
-            int gridlength = tspan/dt;
+        py::object simulate(const dtype duration, const dtype dt)
+                {
+                        int grid = duration/dt;
+                        int rt = 0;
 
-            npy_intp size[1];
-            size[0] = gridlength;
-            size[1] = ndim;
+                        dtype v = el;
+                        dtype w = 0.0;
 
-            dtype data[gridlength*ndim];
+                        dtype dv = 0.0;
+                        dtype dw = 0.0;
 
-            auto write = [this, &data, dt](const vtype &x, const double t)
-            {
-                int i = round(t/dt);
-                for (int j = 0; j < ndim; j++){
-                    data[i*ndim+j] = x[j];
+                        npy_intp size[2];
+                        size[0] = grid;
+                        size[1] = 2;
+
+                        dtype data[grid][2];
+
+                        for(int i = 0; i < grid; i++)
+                        {
+                                rt = round(i*dt)/res;
+
+
+                                dv = dt*(1/C*(-gl*(v-el) + gl*delt*exp((v-vt)/delt) - w + R*iapp[rt]));
+                                dw = dt*(1/tw*(a*(v-el) - w));
+                                
+                                v += dv;
+                                w += dw;
+                                
+                                if(v >= h)
+                                {
+                                        data[i][0] = h;
+                                        data[i][1] = w;
+                                        v = vr;
+                                        w += b;
+                                }
+                                else {
+                                        data[i][0] = v;
+                                        data[i][1] = w;
+                                }
+                        }
+
+                        PyObject * pyObj = PyArray_SimpleNewFromData( 2, size, NPY_DOUBLE, data );
+                        py::handle<> handle( pyObj );
+                        py::numeric::array arr( handle );
+                        return arr.copy();
                 }
-            };
-
-			auto stepper = make_dense_output( 1.0e-4 , 1.0e-4 , runge_kutta_dopri5<vtype>() );				
-			double t = 0.0;
-            stepper.initialize(x,t,dt);
-
-            int i = 1;
-            double target = 0.0;
-
-            vtype reset;
-            vtype peak;
-
-            while((stepper.current_time() < tspan))
-            {
-            	target += dt;
-
-            	while(stepper.current_time() <= target)
-            	{
-					stepper.do_step(ode);
-					
-					if(stepper.current_state()[0] >= h)
-					{
-						peak = {h, stepper.current_state()[1]};
-						write(peak, target);
-
-						reset = {vr,stepper.current_state()[1]+b};
-						write(reset, target + dt);
-
-						target += dt*2;
-
-						stepper.initialize(reset, target - dt, dt);
-					}
-				}
-
-				stepper.calc_state(target,x);
-
-				write(x,target);
-				
-            }
-
-
-            double (*data2)[gridlength][ndim] = reinterpret_cast<double (*)[gridlength][ndim]>(data);
-
-            PyObject* pyObj = PyArray_SimpleNewFromData( 2, size, NPY_DOUBLE, data2 );
-            py::handle<> handle( pyObj );
-            py::numeric::array arr( handle );
-            return arr.copy();
-
-		}
-
-        py::object simulate(dtype tspan, dtype dt)
-        {
-            vtype start = {el, 0.0};
-            return integrate(tspan, dt, start);
-        }
 };
 
 class ad2ex: public neuron
@@ -653,289 +525,327 @@ class augmat: public neuron
 
 class hr: public neuron
 {
+    private:
+            int ndim = 3;
+
     public:
-        typedef boost::array< dtype , 3> state_type; // holds variable values form previous timestep
-        dtype a,b,c,d,r,s,xn;
-
-        void set_equations()
-        {
-            ndim = 3;
-            ode = [this]( const vtype &x , vtype &dxdt , dtype t )
-            {
-                // Getting the applied current at time t
-                int rt = round(t)/res;
-                dtype I = iapp[rt];
-
-                // Membrane potential
-                dxdt[0] = x[1] - a*x[0]*x[0]*x[0] + b*x[0]*x[0] - x[2] + I;
-
-                // Spiking variable/Recovery Current
-                dxdt[1] = c - d*x[0]*x[0] - x[1];
-
-                // Bursting variable
-                dxdt[2] = r*(s*(x[0] - xn) - x[2]);
+            typedef boost::array< dtype , 3> state_type; // holds variable values form previous timestep
+            dtype a,b,c,d,r,s,xn;
+            hr() {
+                    a = 1.0;
+                    b = 3.0;
+                    c = 1.0;
+                    d = 5.0;
+                    r = 0.005;
+                    s = 4.0;
+                    xn = -2.0;
             };
-        }
 
-        hr() 
-        {
-            a = 1.0;
-            b = 3.0;
-            c = 1.0;
-            d = 5.0;
-            r = 0.005;
-            s = 4.0;
-            xn = -2.0;
+            hr(dtype na, dtype nb, dtype nc, dtype nd, dtype nr, dtype ns, dtype nxn)
+                    {
+                            a = na;
+                            b = nb;
+                            c = nc;
+                            d = nd;
+                            r = nr;
+                            s = ns;
+                            xn = nxn;
+                    };
 
-            set_equations();
-        };
+            boost::function<void(const vtype&, vtype&, dtype)> ode = [this]( const vtype &x , vtype &dxdt , dtype t )
+                    {
+                            // Getting the applied current at time t
+                            int rt = round(t)/res;
+                            dtype I = iapp[rt];
 
-        hr(dtype na, dtype nb, dtype nc, dtype nd, dtype nr, dtype ns, dtype nxn)
-        {
-            a = na;
-            b = nb;
-            c = nc;
-            d = nd;
-            r = nr;
-            s = ns;
-            xn = nxn;
+                            // Membrane potential
+                            dxdt[0] = x[1] - a*x[0]*x[0]*x[0] + b*x[0]*x[0] - x[2] + I;
 
-            set_equations();
-        };
+                            // Spiking variable/Recovery Current
+                            dxdt[1] = c - d*x[0]*x[0] - x[1];
+
+                            // Bursting variable
+                            dxdt[2] = r*(s*(x[0] - xn) - x[2]);
+                    };
 
 
-        py::object simulate(dtype tspan, dtype dt)
-        {
-            vtype start = {-2.0, 0.0, 3.0};
-            return integrate(tspan, dt, start);
-        }
+            py::object simulate(dtype tspan, dtype dt){
+                    vtype start = {-2.0, 0.0, 3.0};
+                    return integrate(ode, ndim, tspan, dt, start);
+            }
+
+            py::object modelerr(py::numeric::array data, dtype dt){
+                    return calc_modelerr(ode, ndim,data, dt);
+            }
 };
 
 class hr4: public neuron
 {
+    private:
+            int ndim = 4;
+
     public:
-        dtype a,b,c,d,r,s,xn,v,g,k,l;
-
-        void set_equations()
-        {
-            ode = [this]( const vtype &x , vtype &dxdt , dtype t )
-            {
-                // Getting the applied current at time t
-                int rt = round(t)/res;
-                dtype I = iapp[rt];
-
-                // Membrane potential
-                dxdt[0] = x[1] - a*x[0]*x[0]*x[0] + b*x[0]*x[0] - x[2] + I;
-
-                // Spiking variable/Recovery Current
-                dxdt[1] = c - d*x[0]*x[0] - x[1] - g*x[3];
-
-                // Bursting variable
-                dxdt[2] = r*(s*(x[0] - xn) - x[2]);
-
-                dxdt[3] = v*(k*(x[1] + l) - x[3]);
+            typedef boost::array< dtype , 4> state_type; // holds variable values form previous timestep
+            dtype a,b,c,d,r,s,xn,v,g,k,l;
+            hr4() {
+                    a = 1.0;
+                    b = 3.0;
+                    c = 1.0;
+                    d = 5.0;
+                    r = 0.005;
+                    s = 4.0;
+                    xn = -2.0;
+                    v = 0.001;
+                    g = 0.1;
+                    k = 3.0;
+                    l = 1.6;
             };
 
-            ndim = 4;
-        }
+            hr4(dtype na, dtype nb, dtype nc, dtype nd, dtype nr, dtype ns, dtype nxn, dtype nv, dtype nk, dtype ng, dtype nl)
+                    {
+                            a = na;
+                            b = nb;
+                            c = nc;
+                            d = nd;
+                            r = nr;
+                            s = ns;
+                            xn = nxn;
+                            v = nv;
+                            g = ng;
+                            k = nk;
+                            l = nl;
+                    };
 
-        hr4() 
-        {
-            a = 1.0;
-            b = 3.0;
-            c = 1.0;
-            d = 5.0;
-            r = 0.005;
-            s = 4.0;
-            xn = -2.0;
-            v = 0.001;
-            g = 0.1;
-            k = 3.0;
-            l = 1.6;
+            boost::function<void(const vtype&, vtype&, dtype)> ode = [this]( const vtype &x , vtype &dxdt , dtype t )
+                    {
+                            // Getting the applied current at time t
+                            int rt = round(t)/res;
+                            dtype I = iapp[rt];
 
-            set_equations();
-        };
+                            // Membrane potential
+                            dxdt[0] = x[1] - a*x[0]*x[0]*x[0] + b*x[0]*x[0] - x[2] + I;
 
-        hr4(dtype na, dtype nb, dtype nc, dtype nd, dtype nr, dtype ns, dtype nxn, dtype nv, dtype nk, dtype ng, dtype nl)
-        {
-            a = na;
-            b = nb;
-            c = nc;
-            d = nd;
-            r = nr;
-            s = ns;
-            xn = nxn;
-            v = nv;
-            g = ng;
-            k = nk;
-            l = nl;
+                            // Spiking variable/Recovery Current
+                            dxdt[1] = c - d*x[0]*x[0] - x[1] - g*x[3];
 
-            set_equations();
-        };
+                            // Bursting variable
+                            dxdt[2] = r*(s*(x[0] - xn) - x[2]);
 
-        py::object simulate(dtype tspan, dtype dt)
-        {
-            vtype start = {-2.0, 0.0, 3.0, -2};
-            return integrate(tspan, dt, start);
-        }
+                            dxdt[3] = v*(k*(x[1] + l) - x[3]);
+                    };
+
+
+            py::object simulate(dtype tspan, dtype dt){
+                    vtype start = {-2.0, 0.0, 3.0, -2};
+                    return integrate(ode, ndim, tspan, dt, start);
+            }
+
+            py::object modelerr(py::numeric::array data, dtype dt){
+                    return calc_modelerr(ode, ndim,data, dt);
+            }
+};
+
+class hr_alt: public neuron
+{
+    private:
+            int ndim = 3;
+
+    public:
+            typedef boost::array< dtype , 3> state_type; // holds variable values form previous timestep
+            dtype a,b,c,d,r,s,xn;
+            hr_alt() {
+                    a = 1.0;
+                    b = 3.0;
+                    c = 1.0;
+                    d = 5.0;
+                    r = 0.005;
+                    s = 0.02;
+                    xn = -2.0;
+            };
+
+            hr_alt(dtype na, dtype nb, dtype nc, dtype nd, dtype nr, dtype ns, dtype nxn)
+                    {
+                            a = na;
+                            b = nb;
+                            c = nc;
+                            d = nd;
+                            r = nr;
+                            s = ns;
+                            xn = nxn;
+                    };
+
+            boost::function<void(const vtype&, vtype&, dtype)> ode = [this]( const vtype &x , vtype &dxdt , dtype t )
+                    {
+                            // Getting the applied current at time t
+                            int rt = round(t)/res;
+                            dtype I = iapp[rt];
+
+                            // Membrane potential
+                            dxdt[0] = x[1] - a*x[0]*x[0]*x[0] + b*x[0]*x[0] - x[2] + I;
+
+                            // Spiking variable/Recovery Current
+                            dxdt[1] = c - d*x[0]*x[0] - x[1];
+
+                            // Bursting variable
+                            dxdt[2] = s*(x[0] - xn) - r*x[2];
+                    };
+
+
+            py::object simulate(dtype tspan, dtype dt){
+                    vtype start = {-2.0, 0.0, 3.0};
+                    return integrate(ode, ndim, tspan, dt, start);
+            }
+
+            py::object modelerr(py::numeric::array data, dtype dt){
+                    return calc_modelerr(ode, ndim,data, dt);
+            }
 };
 
 class hr2: public neuron
 {
+    private:
+            int ndim = 2;
 
     public:
-        dtype a,b,c,d,xn;
-
-        void set_equations()
-        {
-            ndim = 2;
-            ode = [this]( const vtype &x , vtype &dxdt , dtype t )
-            {
-                // Getting the applied current at time t
-                int rt = round(t)/res;
-                dtype I = iapp[rt];
-
-                // Membrane potential
-                dxdt[0] = x[1] - a*x[0]*x[0]*x[0] + b*x[0]*x[0] - x[2] + I;
-
-                // Spiking variable/Recovery Current
-                dxdt[1] = c - d*x[0]*x[0] - x[1];
-
+            typedef boost::array< dtype , 3> state_type; // holds variable values form previous timestep
+            dtype a,b,c,d,xn;
+            hr2() {
+                    a = 1.0;
+                    b = 3.0;
+                    c = 1.0;
+                    d = 5.0;
+                    xn = -2.0;
             };
-        }
 
-        hr2() 
-        {
-            a = 1.0;
-            b = 3.0;
-            c = 1.0;
-            d = 5.0;
-            xn = -2.0;
+            hr2(dtype na, dtype nb, dtype nc, dtype nd, dtype nr, dtype ns, dtype nxn)
+                    {
+                            a = na;
+                            b = nb;
+                            c = nc;
+                            d = nd;
+                            xn = nxn;
+                    };
 
-            set_equations();
-        };
+            boost::function<void(const vtype&, vtype&, dtype)> ode = [this]( const vtype &x , vtype &dxdt , dtype t )
+                    {
+                            // Getting the applied current at time t
+                            int rt = round(t)/res;
+                            dtype I = iapp[rt];
 
-        hr2(dtype na, dtype nb, dtype nc, dtype nd, dtype nr, dtype ns, dtype nxn)
-        {
-            a = na;
-            b = nb;
-            c = nc;
-            d = nd;
-            xn = nxn;
+                            // Membrane potential
+                            dxdt[0] = x[1] - a*x[0]*x[0]*x[0] + b*x[0]*x[0] - x[2] + I;
 
-            set_equations();
-        };
+                            // Spiking variable/Recovery Current
+                            dxdt[1] = c - d*x[0]*x[0] - x[1];
+
+                    };
 
 
-        py::object simulate(dtype tspan, dtype dt)
-        {
-            vtype start = {-2.0, 0.0};
-            return integrate(tspan, dt, start);
-        }
+            py::object simulate(dtype tspan, dtype dt){
+                    vtype start = {-2.0, 0.0};
+                    return integrate(ode, ndim, tspan, dt, start);
+            }
+
+            py::object modelerr(py::numeric::array data, dtype dt){
+                    return calc_modelerr(ode, ndim,data, dt);
+            }
 };
 
 class hh: public neuron
 {
+    private:
+            int ndim = 4;
     public:
-        dtype C,gna,Ena,gk,Ek,gl,El,vm,dvm,tm0,tm1,vmt,dvmt,vh,dvh,
-                th0,th1,vht,dvht,vn,dvn,tn0,tn1,vnt,dvnt;
-
-        void set_equations()
-        {
-            ndim = 4;
-            ode = [this]( const vtype &x , vtype &dxdt , dtype t )
-            {
-                int rt = round(round(t)/res);
-                dtype I = iapp[rt];
-
-                dxdt[0] = ((gna*x[1]*x[1]*x[1]*x[2]*(Ena-x[0]))+(gk*x[3]*x[3]*x[3]*x[3]*(Ek - x[0]))+
-                           (gl*(El-x[0])) + I)/C;
-
-                dtype taum = tm0 + tm1 * (1-pow(tanh((x[0] - vmt)/dvmt),2));
-                dtype m0 = (1+tanh((x[0]-vm)/dvm))/2;
-                dxdt[1] = (m0 - x[1])/taum;
-
-                dtype tauh = th0 + th1 * (1-pow(tanh((x[0] - vht)/dvht),2));
-                dtype h0 = (1+tanh((x[0]-vh)/dvh))/2;
-                dxdt[2] = (h0 - x[2])/tauh;
-
-                dtype taun = tn0 + tn1 * (1-pow(tanh((x[0] - vnt)/dvnt),2));
-                dtype n0 = (1+tanh((x[0]-vn)/dvn))/2;
-                dxdt[3] = (n0 - x[3])/taun;
+            dtype C,gna,Ena,gk,Ek,gl,El,vm,dvm,tm0,tm1,vmt,dvmt,vh,dvh,
+                    th0,th1,vht,dvht,vn,dvn,tn0,tn1,vnt,dvnt;
+            hh() {
+                    C=1.0;
+                    gna=120.0;
+                    Ena=50.0;
+                    gk=20.0;
+                    Ek=-77.0;
+                    gl=0.3;
+                    El=-54.4;
+                    vm=-40.0;
+                    dvm=15.0;
+                    tm0=0.1;
+                    tm1=0.4;
+                    vmt=-40.0;
+                    dvmt=15.0;
+                    vh=-60.0;
+                    dvh=-15.0;
+                    th0=1.0;
+                    th1=7.0;
+                    vht=-60.0;
+                    dvht=-15.0;
+                    vn=-55.0;
+                    dvn=30.0;
+                    tn0=1.0;
+                    tn1=5.0;
+                    vnt=-55.0;
+                    dvnt=30.0;
+                    res=0.1;
             };
-        }
-
-        hh() 
-        {
-                C=1.0;
-                gna=120.0;
-                Ena=50.0;
-                gk=20.0;
-                Ek=-77.0;
-                gl=0.3;
-                El=-54.4;
-                vm=-40.0;
-                dvm=15.0;
-                tm0=0.1;
-                tm1=0.4;
-                vmt=-40.0;
-                dvmt=15.0;
-                vh=-60.0;
-                dvh=-15.0;
-                th0=1.0;
-                th1=7.0;
-                vht=-60.0;
-                dvht=-15.0;
-                vn=-55.0;
-                dvn=30.0;
-                tn0=1.0;
-                tn1=5.0;
-                vnt=-55.0;
-                dvnt=30.0;
-                set_equations();
-                
-            }
-
             hh(py::list nparam)
-            {
-                gna=py::extract<dtype>(nparam[0]);
-                Ena=py::extract<dtype>(nparam[1]);
-                gk=py::extract<dtype>(nparam[2]);
-                Ek=py::extract<dtype>(nparam[3]);
-                gl=py::extract<dtype>(nparam[4]);
-                El=py::extract<dtype>(nparam[5]);
-                vm=py::extract<dtype>(nparam[6]);
-                dvm=py::extract<dtype>(nparam[7]);
-                tm0=py::extract<dtype>(nparam[8]);
-                tm1=py::extract<dtype>(nparam[9]);
-                vmt=py::extract<dtype>(nparam[10]);
-                dvmt=py::extract<dtype>(nparam[11]);
-                vh=py::extract<dtype>(nparam[12]);
-                dvh=py::extract<dtype>(nparam[13]);
-                th0=py::extract<dtype>(nparam[14]);
-                th1=py::extract<dtype>(nparam[15]);
-                vht=py::extract<dtype>(nparam[16]);
-                dvht=py::extract<dtype>(nparam[17]);
-                vn=py::extract<dtype>(nparam[18]);
-                dvn=py::extract<dtype>(nparam[19]);
-                tn0=py::extract<dtype>(nparam[20]);
-                tn1=py::extract<dtype>(nparam[21]);
-                vnt=py::extract<dtype>(nparam[22]);
-                dvnt=py::extract<dtype>(nparam[23]);
-                C=py::extract<dtype>(nparam[24]);
-                
-                set_equations();
-            }
+                    {
+                            C=1.0;
+                            gna=py::extract<dtype>(nparam[0]);
+                            Ena=py::extract<dtype>(nparam[1]);
+                            gk=py::extract<dtype>(nparam[2]);
+                            Ek=py::extract<dtype>(nparam[3]);
+                            gl=py::extract<dtype>(nparam[4]);
+                            El=py::extract<dtype>(nparam[5]);
+                            vm=py::extract<dtype>(nparam[6]);
+                            dvm=py::extract<dtype>(nparam[7]);
+                            tm0=py::extract<dtype>(nparam[8]);
+                            tm1=py::extract<dtype>(nparam[9]);
+                            vmt=py::extract<dtype>(nparam[10]);
+                            dvmt=py::extract<dtype>(nparam[11]);
+                            vh=py::extract<dtype>(nparam[12]);
+                            dvh=py::extract<dtype>(nparam[13]);
+                            th0=py::extract<dtype>(nparam[14]);
+                            th1=py::extract<dtype>(nparam[15]);
+                            vht=py::extract<dtype>(nparam[16]);
+                            dvht=py::extract<dtype>(nparam[17]);
+                            vn=py::extract<dtype>(nparam[18]);
+                            dvn=py::extract<dtype>(nparam[19]);
+                            tn0=py::extract<dtype>(nparam[20]);
+                            tn1=py::extract<dtype>(nparam[21]);
+                            vnt=py::extract<dtype>(nparam[22]);
+                            dvnt=py::extract<dtype>(nparam[23]);
+                            res=0.1;
+                    };
+            boost::function<void(const vtype&, vtype&, dtype)> ode = [this]( const vtype &x , vtype &dxdt , dtype t )
+                    {
+                            int rt = round(round(t)/res);
+                            dtype I = iapp[rt];
 
-            py::object simulate(dtype tspan, dtype dt)
-            {
+                            dxdt[0] = ((gna*x[1]*x[1]*x[1]*x[2]*(Ena-x[0]))+(gk*x[3]*x[3]*x[3]*x[3]*(Ek - x[0]))+
+                                       (gl*(El-x[0])) + I)/C;
+
+                            dtype taum = tm0 + tm1 * (1-pow(tanh((x[0] - vmt)/dvmt),2));
+                            dtype m0 = (1+tanh((x[0]-vm)/dvm))/2;
+                            dxdt[1] = (m0 - x[1])/taum;
+
+                            dtype tauh = th0 + th1 * (1-pow(tanh((x[0] - vht)/dvht),2));
+                            dtype h0 = (1+tanh((x[0]-vh)/dvh))/2;
+                            dxdt[2] = (h0 - x[2])/tauh;
+
+                            dtype taun = tn0 + tn1 * (1-pow(tanh((x[0] - vnt)/dvnt),2));
+                            dtype n0 = (1+tanh((x[0]-vn)/dvn))/2;
+                            dxdt[3] = (n0 - x[3])/taun;
+
+                    };
+            py::object simulate(dtype tspan, dtype dt){
                     vtype start = { -60.0, 0.0, 0.6, 0.5}; // initial
-                    return integrate(tspan, dt, start);
+                    return integrate(ode, ndim, tspan, dt, start);
             }
 
+            py::object modelerr(py::numeric::array data, dtype dt){
+                    return calc_modelerr(ode, ndim,data, dt);
+            }
 };
 
-/*
 class pasiv: public neuron
 {
     private:
@@ -961,8 +871,10 @@ class pasiv: public neuron
                     return integrate(ode, ndim, tspan, dt, start);
             }
 
+            py::object modelerr(py::numeric::array data, dtype dt) {
+                    return calc_modelerr(ode, ndim, data, dt);
+            }
 };
-*/
 
 class matex: public neuron
 {
@@ -1088,7 +1000,7 @@ BOOST_PYTHON_MODULE(cneurons)
         import_array();
         py::numeric::array::set_module_and_type("numpy", "ndarray");
 
-        class_<neuron, boost::noncopyable>("_neuron")
+        class_<neuron, boost::noncopyable>("neuron")
                 .def("apply_current", &neuron::apply_current);
 
         class_<iz,bases<neuron>>("iz")
@@ -1115,20 +1027,6 @@ BOOST_PYTHON_MODULE(cneurons)
                 .def_readwrite("b", &adex::b)
                 .def_readwrite("h", &adex::h)
                 .def_readwrite("R", &adex::R);
-        class_<adex_dense,bases<neuron>>("adex_dense")
-	        .def(init<dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype>())
-	        .def("simulate", &adex_dense::simulate)
-	        .def_readwrite("C", &adex_dense::C)
-	        .def_readwrite("gl", &adex_dense::gl)
-	        .def_readwrite("el", &adex_dense::el)
-	        .def_readwrite("delt", &adex_dense::delt)
-	        .def_readwrite("vt", &adex_dense::vt)
-	        .def_readwrite("tw", &adex_dense::tw)
-	        .def_readwrite("a", &adex_dense::a)
-	        .def_readwrite("vr", &adex_dense::vr)
-	        .def_readwrite("b", &adex_dense::b)
-	        .def_readwrite("h", &adex_dense::h)
-	        .def_readwrite("R", &adex_dense::R);
 
         class_<ad2ex,bases<neuron>>("ad2ex")
                 .def(init<dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype>())
@@ -1197,6 +1095,7 @@ BOOST_PYTHON_MODULE(cneurons)
         class_<hr,bases<neuron>>("hr")
                 .def(init<dtype, dtype, dtype, dtype, dtype, dtype, dtype>())
                 .def("simulate", &hr::simulate)
+                .def("modelerr", &hr::modelerr)
                 .def_readwrite("a", &hr::a)
                 .def_readwrite("b", &hr::b)
                 .def_readwrite("c", &hr::c)
@@ -1205,9 +1104,22 @@ BOOST_PYTHON_MODULE(cneurons)
                 .def_readwrite("s", &hr::s)
                 .def_readwrite("xn", &hr::xn);
 
+        class_<hr_alt,bases<neuron>>("hr_alt")
+                .def(init<dtype, dtype, dtype, dtype, dtype, dtype, dtype>())
+                .def("simulate", &hr_alt::simulate)
+                .def("modelerr", &hr_alt::modelerr)
+                .def_readwrite("a", &hr_alt::a)
+                .def_readwrite("b", &hr_alt::b)
+                .def_readwrite("c", &hr_alt::c)
+                .def_readwrite("d", &hr_alt::d)
+                .def_readwrite("r", &hr_alt::r)
+                .def_readwrite("s", &hr_alt::s)
+                .def_readwrite("xn", &hr_alt::xn);
+
         class_<hr2,bases<neuron>>("hr2")
                 .def(init<dtype, dtype, dtype, dtype, dtype, dtype, dtype>())
                 .def("simulate", &hr2::simulate)
+                .def("modelerr", &hr2::modelerr)
                 .def_readwrite("a", &hr2::a)
                 .def_readwrite("b", &hr2::b)
                 .def_readwrite("c", &hr2::c)
@@ -1217,6 +1129,7 @@ BOOST_PYTHON_MODULE(cneurons)
         class_<hr4,bases<neuron>>("hr4")
                 .def(init<dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype>())
                 .def("simulate", &hr4::simulate)
+                .def("modelerr", &hr4::modelerr)
                 .def_readwrite("a", &hr4::a)
                 .def_readwrite("b", &hr4::b)
                 .def_readwrite("c", &hr4::c)
@@ -1232,6 +1145,7 @@ BOOST_PYTHON_MODULE(cneurons)
         class_<hh,bases<neuron>>("hh")
                 .def(init<py::list>())
                 .def("simulate", &hh::simulate)
+                .def("modelerr", &hh::modelerr)
                 .def_readwrite("C", &hh::C)
                 .def_readwrite("gna", &hh::gna)
                 .def_readwrite("Ena", &hh::Ena)
@@ -1257,9 +1171,8 @@ BOOST_PYTHON_MODULE(cneurons)
                 .def_readwrite("tn1", &hh::tn1)
                 .def_readwrite("vnt", &hh::vnt)
                 .def_readwrite("dvnt", &hh::dvnt);
-        /*
+
         class_<pasiv,bases<neuron>>("pasiv")
                 .def(init<dtype,dtype,dtype,dtype,dtype>())
                 .def("simulate", &pasiv::simulate);
-        */
 }
