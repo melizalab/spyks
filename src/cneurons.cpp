@@ -168,7 +168,7 @@ class neuron_reset: public neuron
 			PyObject* pyObj = PyArray_SimpleNewFromData( 2, size, NPY_DOUBLE, data2 );
 			py::handle<> handle( pyObj );
 			py::numeric::array arr( handle );
-			return py::make_tuple(arr,spikes);
+			return arr.copy();
 
 		}
 };
@@ -299,98 +299,6 @@ class adex: public neuron_reset
             vtype start = {el, 0.0};
             return integrate(tspan, dt, start);
         }
-};
-
-class ad2ex: public neuron
-{
-    public:
-            dtype C,gl,el,delt,vt0,tw,a,vr,b,tt,c,h,R;
-            ad2ex() 
-            {
-                C    = 250.0; 
-                gl   = 30.0;
-                el   = -70.6;
-                delt = 2.0;
-                vt0  = -55.0;
-                tw   = 144.0;
-                a    = 4.0;
-                vr   = -70.6;
-                b    = 80.5;
-                h    = 30.0;
-                tt   = 300.0;
-                c    = 20.0;
-                R    = 1.0;
-            };
-            ad2ex(dtype nC,dtype ngl,dtype nel,dtype ndelt,dtype nvt0,dtype ntw,dtype na,dtype nvr,dtype nb,dtype ntt,dtype nc)
-            {
-                C    = nC; 
-                gl   = ngl;
-                el   = nel;
-                delt = ndelt;
-                vt0  = nvt0;
-                tw   = ntw;
-                a    = na;
-                vr   = nvr;
-                b    = nb;
-                tt   = ntt;
-                c    = nc;
-                h    = 30.0;
-                R    = 1.0;
-            };
-
-            py::object simulate(const dtype duration, const dtype dt)
-                    {
-                            int grid = duration/dt;
-
-                            int rt = 0;
-
-                            dtype v  = el;
-                            dtype w  = 0.0;
-                            dtype vt = vt0;
- 
-                            dtype dv  = 0.0;
-                            dtype dw  = 0.0;
-                            dtype dvt = 0.0;
-
-                            npy_intp size[3];
-                            size[0] = grid;
-                            size[1] = 3;
-
-                            dtype data[grid][3];
-
-                            for(int i = 0; i < grid; i++)
-                            {
-                                    rt = round(i*dt)/res;
-                                    dv = dt*(1/C*(-gl*(v-el) + gl*delt*exp((v-vt)/delt) - w + R*iapp[rt]));
-                                    dw = dt*(1/tw*(a*(v-el) - w));
-                                    dvt = (1/tt*(vt0 - vt));
-
-                                    v  += dv;
-                                    w  += dw;
-                                    vt += dvt;
-                                    
-                                    if(v >= h)
-                                    {
-                                            data[i][0] = h;
-                                            data[i][1] = w;
-                                            data[i][2] = vt;
-
-                                            v = vr;
-                                            w += b;
-                                            vt += c;
-                                    }
-                                    else {
-                                            data[i][0] = v;
-                                            data[i][1] = w;
-                                            data[i][2] = vt;
-                                    }
-                            }
-
-                            PyObject * pyObj = PyArray_SimpleNewFromData( 2, size, NPY_DOUBLE, data );
-                            py::handle<> handle( pyObj );
-                            py::numeric::array arr( handle );
-                            return arr.copy();
-                    }
 };
 
 class mat: public neuron
@@ -838,125 +746,6 @@ class hh: public neuron
             }
 };
 
-
-class matex: public neuron
-{
-    public:
-            dtype C,gl,el,delt,vt0,tw,a,vr,b,h,R,l,m,n;
-            matex() 
-            {
-                C    = 250.0; 
-                gl   = 30.0;
-                el   = -70.6;
-                delt = 2.0;
-                vt0  = -55.0;
-                tw   = 144.0;
-                a    = 4.0;
-                vr   = -70.6;
-                b    = 80.5;
-                h    = 30.0;
-                R    = 1.0;
-                l    = 15;
-                m    = 3;
-                n    = 0.3;
-            };
-            matex(dtype nC,dtype ngl,dtype nel,dtype ndelt,dtype nvt0,dtype ntw,dtype na,dtype nvr,dtype nb, dtype nl, dtype nm, dtype nn)
-            {
-                C    = nC; 
-                gl   = ngl;
-                el   = nel;
-                delt = ndelt;
-                vt0  = nvt0;
-                tw   = ntw;
-                a    = na;
-                vr   = nvr;
-                b    = nb;
-                h    = 30.0;
-                R    = 1.0;
-                l    = nl;
-                m    = nm;
-                n    = nn;
-            };
-
-            py::object simulate(const dtype duration, const dtype dt)
-			{
-					int grid = duration/dt;
-
-				int rt = 0;
-
-				dtype v  = el;
-				dtype w  = 0.0;
-				dtype vt = vt0;
-
-
-				dtype vt1 = 0;
-				dtype vt2 = 0;
-				dtype vt3 = 0;
-
-				dtype dvt1 = 0;
-				dtype dvt2 = 0;
-				dtype dvt3 = 0;
-				dtype ddvt3 = 0;
-
-				dtype dv  = 0.0;
-				dtype dw  = 0.0;
-
-				npy_intp size[3];
-				size[0] = grid;
-				size[1] = 3;
-
-				dtype data[grid][3];
-
-				for(int i = 0; i < grid; i++)
-				{
-						rt = round(i*dt)/res;
-
-						dvt1 = dt*(-vt1/10);
-						dvt2 = dt*(-vt2/200);
-						dvt3 = dt*(-vt3/5 + ddvt3);
-						ddvt3 = ddvt3 + dt*(-(vt3/5 + dvt3)/5) + n*dv;
-
-						dv = dt*(1/C*(-gl*(v-el) + gl*delt*exp((v-vt)/delt) - w + R*iapp[rt]));
-						dw = dt*(1/tw*(a*(v-el) - w));
-
-
-						vt1 = vt1 + dvt1;
-						vt2 = vt2 + dvt2;
-						vt3 = vt3 + dvt3;
-
-
-						v  += dv;
-						w  += dw;
-						vt = vt0 + vt1 + vt2 + vt3;
-					   
-						if(v >= h)
-						{
-								data[i][0] = h;
-								data[i][1] = w;
-								data[i][2] = vt;
-
-								dv = dt*(h + vr);
-
-								v = vr;
-								w += b;
-								
-								vt1 += l;
-								vt2 += m;
-						}
-						else {
-								data[i][0] = v;
-								data[i][1] = w;
-								data[i][2] = vt;
-						}
-				}
-
-				PyObject * pyObj = PyArray_SimpleNewFromData( 2, size, NPY_DOUBLE, data );
-				py::handle<> handle( pyObj );
-				py::numeric::array arr( handle );
-				return arr.copy();
-			}
-};
-
 BOOST_PYTHON_MODULE(cneurons)
 {
         using namespace py;
@@ -991,43 +780,6 @@ BOOST_PYTHON_MODULE(cneurons)
                 .def_readwrite("b", &adex::b)
                 .def_readwrite("h", &adex::h)
                 .def_readwrite("R", &adex::R);
-
-        class_<ad2ex,bases<neuron>>("ad2ex")
-                .def(init<dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype>())
-                .def("simulate", &ad2ex::simulate)
-                .def_readwrite("C", &ad2ex::C)
-                .def_readwrite("gl", &ad2ex::gl)
-                .def_readwrite("el", &ad2ex::el)
-                .def_readwrite("delt", &ad2ex::delt)
-                .def_readwrite("vt0", &ad2ex::vt0)
-                .def_readwrite("tw", &ad2ex::tw)
-                .def_readwrite("a", &ad2ex::a)
-                .def_readwrite("vr", &ad2ex::vr)
-                .def_readwrite("b", &ad2ex::b)
-                .def_readwrite("h", &ad2ex::h)
-                .def_readwrite("tt", &ad2ex::tt)
-                .def_readwrite("c", &ad2ex::c)
-                .def_readwrite("R", &ad2ex::R);
-
-
-
-        class_<matex,bases<neuron>>("matex")
-                .def(init<dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype, dtype>())
-                .def("simulate", &matex::simulate)
-                .def_readwrite("C", &matex::C)
-                .def_readwrite("gl", &matex::gl)
-                .def_readwrite("el", &matex::el)
-                .def_readwrite("delt", &matex::delt)
-                .def_readwrite("vt0", &matex::vt0)
-                .def_readwrite("tw", &matex::tw)
-                .def_readwrite("a", &matex::a)
-                .def_readwrite("vr", &matex::vr)
-                .def_readwrite("b", &matex::b)
-                .def_readwrite("h", &matex::h)
-                .def_readwrite("l", &matex::l)
-                .def_readwrite("m", &matex::m)
-                .def_readwrite("n", &matex::n)
-                .def_readwrite("R", &matex::R);
 
         class_<mat,bases<neuron>>("mat")
                 .def(init<dtype,dtype,dtype>())
@@ -1115,9 +867,4 @@ BOOST_PYTHON_MODULE(cneurons)
                 .def_readwrite("tn1", &hh::tn1)
                 .def_readwrite("vnt", &hh::vnt)
                 .def_readwrite("dvnt", &hh::dvnt);
-        /*
-        class_<pasiv,bases<neuron>>("pasiv")
-                .def(init<dtype,dtype,dtype,dtype,dtype>())
-                .def("simulate", &pasiv::simulate);
-        */
 }
