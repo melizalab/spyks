@@ -13,31 +13,45 @@ try:
 except AttributeError:
     numpy_include = numpy.get_numpy_include()
 
-if sys.platform == "win32" :
-    include_dirs = ["C:/Boost/include/boost-1_32","."]
-    libraries=["boost_python-mgw"]
-    library_dirs=['C:/Boost/lib']
-elif sys.platform == 'darwin':
-    include_dirs = ["/opt/local/include", numpy_include]
-    libraries=["boost_python-mt"]
-    library_dirs=["/opt/local/lib"]
-else:
-    include_dirs = ["/usr/include/boost",numpy_include]
-    libraries=["boost_python"]
-    library_dirs=['/usr/local/lib']
+try:
+    from Cython.Distutils import build_ext
+    SUFFIX = '.pyx'
+except ImportError:
+    from distutils.command.build_ext import build_ext
+    SUFFIX = '.c'
 
-setup(name="spyks",
-      version="0.1.0",
+compiler_settings = {
+    "include_dirs" : [numpy_include]
+}
+
+# if sys.platform == "win32" :
+#     include_dirs = ["C:/Boost/include/boost-1_32","."]
+#     libraries=["boost_python-mgw"]
+#     library_dirs=['C:/Boost/lib']
+# elif sys.platform == 'darwin':
+#     include_dirs = ["/opt/local/include", numpy_include]
+#     libraries=["boost_python-mt"]
+#     library_dirs=["/opt/local/lib"]
+# else:
+#     include_dirs = ["/usr/include/boost",numpy_include]
+#     libraries=["boost_python"]
+#     library_dirs=['/usr/local/lib']
+
+_models = Extension("spyks.models", sources=["spyks/models" + SUFFIX,
+                                             "src/neurons.cpp"],
+                    language="c++",
+                    **compiler_settings)
+
+setup(
+    name="spyks",
+    version="0.2.0",
+    packages= find_packages(exclude=["*test*"]),
+    cmdclass = {'build_ext': build_ext},
+    ext_modules=[_models],
+
       description="minimalist spiking neuron model library",
       author="Tyler Robbins",
       author_email="tdr5wc at the domain 'virginia.edu'",
 
-      packages=['spyks'],
 
-      ext_modules=[
-          Extension('spyks.cneurons',
-                    ['src/cneurons.cpp'],
-                    include_dirs=include_dirs,
-                    library_dirs=library_dirs,
-                    libraries=libraries,
-                    extra_compile_args=['-std=c++11','-shared'])])
+)

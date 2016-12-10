@@ -1,1 +1,2 @@
-from cneurons import *
+# -*- coding: utf-8 -*-
+# -*- mode: python -*-
