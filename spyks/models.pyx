@@ -2,16 +2,16 @@
 
 from libcpp.string cimport string
 from libcpp.vector cimport vector
-from libcpp.array cimport array
 
 cdef extern from "neurons.hpp" namespace "neurons":
     cdef cppclass adex:
         size_t N_PARAM
+        size_t N_STATE
+        size_t N_FORCING
         adex() except +
-        void set_params(array[double, N_PARAM] & params)
+        void set_params(vector[double] & params)
         void set_forcing(vector[double] & forcing, double dt)
-        vector[double] & get_forcing()
-        void reset(vector[double] & X)
+        bint reset(vector[double] & X)
         void operator()(vector[double] & X, vector[double] & dXdt, double time)
 
 cdef class AdEx:
@@ -31,14 +31,16 @@ cdef class AdEx:
     def set_forcing(self, forcing, double dt):
         self.model.set_forcing(forcing, dt)
 
-    def get_forcing(self):
-        return self.model.get_forcing()
-
     def __call__(self, state, time):
         cdef vector[double] out
         out.resize(len(state))
         self.model(state, out, time)
         return out
+
+    def reset(self, vector[double] state):
+        cdef bint out
+        out = self.model.reset(state)
+        return state, out
 
 
 # cdef class PyAdEx:

@@ -7,14 +7,14 @@ using namespace neurons;
 void
 adex::set_params(parameters_type const & params)
 {
-        std::copy(params.begin(), params.end(), _params);
+        std::copy(params.begin(), params.end(), _params.begin());
 }
 
-adex::parameters_type const &
-adex::get_params() const
-{
-        return _params;
-}
+// adex::parameters_type const &
+// adex::get_params() const
+// {
+//         return _params;
+// }
 
 void
 adex::set_forcing(forcing_type const & Iinj, double dt)
@@ -25,24 +25,25 @@ adex::set_forcing(forcing_type const & Iinj, double dt)
         _dt = dt;
 }
 
-adex::forcing_type const &
-adex::get_forcing() const
-{
-        return _Iinj;
-}
+// adex::forcing_type const &
+// adex::get_forcing() const
+// {
+//         return _Iinj;
+// }
 
 void
 adex::operator()(state_type const & X, state_type & dXdt, double t) const
 {
         // refs for convenience; will most likely be optimized out
-        double & C = _params[0],
-               & gl = _params[1],
-               & el = _params[2],
-               & delt = _params[3],
-               & vt = _params[4],
-               & tw = _params[5],
-               & a = _params[6],
-               & R = _params[10];
+        typedef double const & dcr;
+        dcr C = _params[0],
+            gl = _params[1],
+            el = _params[2],
+            delt = _params[3],
+            vt = _params[4],
+            tw = _params[5],
+            a = _params[6],
+            R = _params[10];
 
         forcing_type::size_type rt = std::round(t / _dt);
         double Iinj = _Iinj[rt];
@@ -53,9 +54,10 @@ adex::operator()(state_type const & X, state_type & dXdt, double t) const
 bool
 adex::reset(state_type & X) const
 {
-        double & vr = _params[7],
-               & b = _params[8],
-               & h = _params[9];
+        typedef double const & dcr;
+        dcr vr = _params[7],
+            b = _params[8],
+            h = _params[9];
 
         if (X[0] < h)
                 return false;

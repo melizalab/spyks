@@ -26,14 +26,14 @@ public:
         /** Updates the parameters of the model */
         void set_params(parameters_type const &);
 
-        parameters_type const & get_params() const;
+        // parameters_type const & get_params() const;
         /** Returns the current value of the parameters */
         // parameters_t const & get_theta() const;
 
         /** Sets the forcing terms in the model */
         void set_forcing(forcing_type const &, double dt);
 
-        forcing_type const & get_forcing() const;
+        // forcing_type const & get_forcing() const;
 
         /** Calculates equations of motion dX/dt = F(X, theta, t) */
         void operator()(state_type const & X, state_type & dXdt, double t) const;
