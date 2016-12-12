@@ -4,11 +4,17 @@
 
 using namespace neurons;
 
-adex::adex()
-        : _C(_params[0]), _gl(_params[1]), _el(_params[2]), _delt(_params[3]),
-          _vt(_params[4]), _tw(_params[5]), _a(_params[6]), _vr(_params[7]),
-          _b(_params[8]), _h(_params[9]), _R(_params[10])
-{}
+void
+adex::set_params(parameters_type const & params)
+{
+        std::copy(params.begin(), params.end(), _params);
+}
+
+adex::parameters_type const &
+adex::get_params() const
+{
+        return _params;
+}
 
 void
 adex::set_forcing(forcing_type const & Iinj, double dt)
@@ -19,23 +25,43 @@ adex::set_forcing(forcing_type const & Iinj, double dt)
         _dt = dt;
 }
 
+adex::forcing_type const &
+adex::get_forcing() const
+{
+        return _Iinj;
+}
+
 void
 adex::operator()(state_type const & X, state_type & dXdt, double t) const
 {
-        forcing_type::size_type rt = std::round(t) / _dt;
+        // refs for convenience; will most likely be optimized out
+        double & C = _params[0],
+               & gl = _params[1],
+               & el = _params[2],
+               & delt = _params[3],
+               & vt = _params[4],
+               & tw = _params[5],
+               & a = _params[6],
+               & R = _params[10];
+
+        forcing_type::size_type rt = std::round(t / _dt);
         double Iinj = _Iinj[rt];
-        dXdt[0] = 1/_C*(-_gl*(X[0]-_el) + _gl*_delt*std::exp((X[0]-_vt)/_delt) - X[1] + _R*Iinj);
-        dXdt[1] = 1/_tw*(_a*(X[0]-_el) - X[1]);
+        dXdt[0] = 1/C*(-gl*(X[0]-el) + gl*delt*std::exp((X[0]-vt)/delt) - X[1] + R*Iinj);
+        dXdt[1] = 1/tw*(a*(X[0]-el) - X[1]);
 }
 
 bool
 adex::reset(state_type & X) const
 {
-        if (X[0] < _h)
+        double & vr = _params[7],
+               & b = _params[8],
+               & h = _params[9];
+
+        if (X[0] < h)
                 return false;
         else {
-                X[0] = _vr;
-                X[1] += _b;
+                X[0] = vr;
+                X[1] += b;
                 return true;
         }
 }

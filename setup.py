@@ -21,7 +21,7 @@ except ImportError:
     SUFFIX = '.c'
 
 compiler_settings = {
-    "include_dirs" : [numpy_include]
+    "include_dirs" : ["src/", numpy_include]
 }
 
 # if sys.platform == "win32" :
