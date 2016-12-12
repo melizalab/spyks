@@ -1,20 +1,15 @@
 
 #include "neurons.hpp"
+#include <algorithm>
 #include <cmath>
 
 using namespace neurons;
 
 void
-adex::set_params(parameters_type const & params)
+adex::set_params(parameters_type const params)
 {
-        std::copy(params.begin(), params.end(), _params.begin());
+        std::copy_n(params, N_PARAM, _params.begin());
 }
-
-// adex::parameters_type const &
-// adex::get_params() const
-// {
-//         return _params;
-// }
 
 void
 adex::set_forcing(forcing_type const & Iinj, double dt)
@@ -25,14 +20,8 @@ adex::set_forcing(forcing_type const & Iinj, double dt)
         _dt = dt;
 }
 
-// adex::forcing_type const &
-// adex::get_forcing() const
-// {
-//         return _Iinj;
-// }
-
 void
-adex::operator()(state_type const & X, state_type & dXdt, double t) const
+adex::operator()(state_type const X, state_type dXdt, double t) const
 {
         // refs for convenience; will most likely be optimized out
         typedef double const & dcr;
@@ -52,7 +41,7 @@ adex::operator()(state_type const & X, state_type & dXdt, double t) const
 }
 
 bool
-adex::reset(state_type & X) const
+adex::reset(state_type X) const
 {
         typedef double const & dcr;
         dcr vr = _params[7],

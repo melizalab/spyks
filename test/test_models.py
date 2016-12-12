@@ -9,14 +9,14 @@ from spyks import models
 
 adex_params = [
     {'params': [250, 30, -70.6, 2.0, -55, 144, 4, -70.6, 80.5, 30, 1],
-     'forcing': [0],
-     'state': [-70, 0]},
+     'forcing': [0.],
+     'state': [-70., 0]},
     {'params': (200, 32, -65, 2.0, -56, 120, 5, -70.6, 80.5, 30, 1),
      'forcing': [0.05],
-     'state': [-50, 0]},
+     'state': [-50., 0]},
     {'params': nx.asarray([200, 32, -65, 2.0, -56, 120, 5, -70.6, 80.5, 30, 1]),
      'forcing': [0.05],
-     'state': [50, 10]},
+     'state': [50., 10]},
 ]
 
 
@@ -29,9 +29,9 @@ def py_adex(X, params, Iinj):
 
 def test_adex_dxdt():
     def compare_adex(model, params, forcing, state):
-        model.set_params(params)
+        model.set_params(nx.asarray(params))
         model.set_forcing(forcing, 0.05)
-        dXdt = model(state, 0)
+        dXdt = model(nx.asarray(state), 0)
         assert_true(nx.allclose(dXdt, py_adex(state, params, forcing[0])))
     model = models.AdEx()
     for tvals in adex_params:
@@ -39,8 +39,8 @@ def test_adex_dxdt():
 
 def test_adex_reset():
     def compare_reset(model, params, state):
-        model.set_params(params)
-        newval, reset = model.reset(state)
+        model.set_params(nx.asarray(params))
+        newval, reset = model.reset(nx.asarray(state))
         if state[0] < params[9]:
             assert_equal(reset, False)
             assert_equal(newval[0], state[0])
