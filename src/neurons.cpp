@@ -5,54 +5,29 @@
 
 using namespace neurons;
 
-void
-adex::set_params(parameters_type const params)
-{
-        std::copy_n(params, N_PARAM, _params.begin());
-}
+adex::adex(double const * params, forcing_type const & forcing) :
+        _C(params[0]), _gl(params[1]), _el(params[2]), _delt(params[3]),
+        _vt(params[4]), _tw(params[5]), _a(params[6]),
+        _vr(params[7]), _b(params[8]), _h(params[9]), _R(params[10]), _forcing(forcing)
+{}
 
-void
-adex::set_forcing(forcing_type const & Iinj, double dt)
-{
-        forcing_type::size_type N = Iinj.size();
-        _Iinj.resize(N);
-        std::copy(Iinj.begin(), Iinj.end(), _Iinj.begin());
-        _dt = dt;
-}
 
 void
 adex::operator()(state_type const & X, state_type & dXdt, double t) const
 {
-        // refs for convenience; will most likely be optimized out
-        typedef double const & dcr;
-        dcr C = _params[0],
-            gl = _params[1],
-            el = _params[2],
-            delt = _params[3],
-            vt = _params[4],
-            tw = _params[5],
-            a = _params[6],
-            R = _params[10];
-
-        forcing_type::size_type rt = std::round(t / _dt);
-        double Iinj = _Iinj[rt];
-        dXdt[0] = 1/C*(-gl*(X[0]-el) + gl*delt*std::exp((X[0]-vt)/delt) - X[1] + R*Iinj);
-        dXdt[1] = 1/tw*(a*(X[0]-el) - X[1]);
+        double Iinj = _forcing(0, t);
+        dXdt[0] = 1/_C*(-_gl*(X[0]-_el) + _gl*_delt*std::exp((X[0]-_vt)/_delt) - X[1] + _R*Iinj);
+        dXdt[1] = 1/_tw*(_a*(X[0]-_el) - X[1]);
 }
 
 bool
 adex::reset(state_type & X) const
 {
-        typedef double const & dcr;
-        dcr vr = _params[7],
-            b = _params[8],
-            h = _params[9];
-
-        if (X[0] < h)
+        if (X[0] < _h)
                 return false;
         else {
-                X[0] = vr;
-                X[1] += b;
+                X[0] = _vr;
+                X[1] += _b;
                 return true;
         }
 }

@@ -28,19 +28,19 @@ def py_adex(X, params, Iinj):
 
 
 def test_adex_dxdt():
-    def compare_adex(model, params, forcing, state):
-        model.set_params(nx.asarray(params))
-        model.set_forcing(forcing, 0.05)
-        dXdt = model(nx.asarray(state), 0)
+    def compare_adex(params, forcing, state):
+        inj = models.timeseries(forcing, 0.05)
+        model = models.AdEx(params, inj)
+        dXdt = model(state, 0)
         assert_true(nx.allclose(dXdt, py_adex(state, params, forcing[0])))
-    model = models.AdEx()
     for tvals in adex_params:
-        yield compare_adex, model, tvals['params'], tvals['forcing'], tvals['state']
+        yield compare_adex, tvals['params'], tvals['forcing'], tvals['state']
 
 def test_adex_reset():
-    def compare_reset(model, params, state):
-        model.set_params(nx.asarray(params))
-        newval, reset = model.reset(nx.asarray(state))
+    def compare_reset(params, forcing, state):
+        inj = models.timeseries(forcing, 0.05)
+        model = models.AdEx(params, inj)
+        reset, newval = model.reset(state)
         if state[0] < params[9]:
             assert_equal(reset, False)
             assert_equal(newval[0], state[0])
@@ -49,6 +49,5 @@ def test_adex_reset():
             assert_equal(reset, True)
             assert_almost_equal(newval[0], params[7])
             assert_almost_equal(newval[1], state[1] + params[8])
-    model = models.AdEx()
     for tvals in adex_params:
-        yield compare_reset, model, tvals['params'], tvals['state']
+        yield compare_reset, tvals['params'], tvals['forcing'], tvals['state']
