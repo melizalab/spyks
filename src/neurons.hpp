@@ -5,13 +5,13 @@
 #include <map>
 #include <array>
 
-/*
- * General notes about the C++ API
- *
- */
-
 namespace neurons {
 
+// template <size_t N>
+// class timeseries {
+// public:
+
+//         timeseries(
 
 class adex {
 public:
@@ -19,7 +19,7 @@ public:
         static const size_t N_STATE = 2;
         static const size_t N_FORCING = 1;
         typedef double * parameters_type;
-        typedef double * state_type;
+        typedef std::array<double, N_STATE> state_type;
         typedef std::vector<double> forcing_type;
 
         /** Updates the parameters of the model */
@@ -29,10 +29,10 @@ public:
         void set_forcing(forcing_type const &, double dt);
 
         /** Calculates equations of motion dX/dt = F(X, theta, t) */
-        void operator()(state_type const X, state_type dXdt, double t) const;
+        void operator()(state_type const & X, state_type & dXdt, double t) const;
 
         /** Resets X if reset conditions are true */
-        bool reset(state_type X) const;
+        bool reset(state_type & X) const;
 
 private:
         std::array<double, N_PARAM> _params;
@@ -41,5 +41,6 @@ private:
 };
 
 }
+
 
 #endif /* NEURONS_H */

@@ -21,7 +21,7 @@ adex::set_forcing(forcing_type const & Iinj, double dt)
 }
 
 void
-adex::operator()(state_type const X, state_type dXdt, double t) const
+adex::operator()(state_type const & X, state_type & dXdt, double t) const
 {
         // refs for convenience; will most likely be optimized out
         typedef double const & dcr;
@@ -41,7 +41,7 @@ adex::operator()(state_type const X, state_type dXdt, double t) const
 }
 
 bool
-adex::reset(state_type X) const
+adex::reset(state_type & X) const
 {
         typedef double const & dcr;
         dcr vr = _params[7],
