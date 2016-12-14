@@ -8,12 +8,21 @@ namespace py = pybind11;
 using namespace pybind11::literals;
 using namespace neurons;
 
-// timeseries
-// integrate_adex(adex const & m, timeseries const & forcing, adex::state_type const & x0, double dt)
+
+template <typename Buffer>
+double * get_data(Buffer & b)
+{
+        py::buffer_info info = b.request();
+        return static_cast<double *>(info.ptr);
+}
+// template<typename Model>
+// integrate_reset(py::array_t<double, py::array::c_style | py::array::forcecast> params,
+//                 typename Model::forcing_type const & forcing,
+//                 typename Model::state_type const & x0, double dt)
 // {
 //         double t = 0;
 //         double tspan = forcing.duration();
-//         adex::state_type x;
+//         Model::state_type x;
 //         timeseries out(tspan, dt);
 //         auto stepper = euler<adex::state_type>();
 //         m.set_forcing(forcing);
@@ -26,6 +35,35 @@ using namespace neurons;
 //         return out;
 // }
 
+py::array
+integrate_adex(py::array_t<double, py::array::c_style | py::array::forcecast> params,
+               adex::forcing_type const & forcing,
+               adex::state_type const & x0, double dt)
+{
+        double t = 0;
+        double tspan = forcing.duration();
+        size_t nsteps = floor(tspan / dt);
+        // adex::state_type x;
+        // adex model(params, forcing);
+        std::vector<size_t> shape = { adex::N_STATE, nsteps};
+        py::array out(py::dtype("d"), shape);
+        return out;
+        // auto stepper = euler<adex::state_type>();
+        // m.set_forcing(forcing);
+        // while (t < tspan) {
+        //         out.write(x, t);
+        //         if (!m.reset(x))
+        //                 stepper.do_step(m, x, t, dt);
+        //         t += dt;
+        // }
+        // return out;
+}
+
+std::vector<double>
+make_vector(std::vector<double> const & blarg)
+{
+        return blarg;
+}
 
 
 PYBIND11_PLUGIN(models) {
@@ -47,9 +85,7 @@ PYBIND11_PLUGIN(models) {
             .def("__init__", [](adex &m,
                                 py::array_t<double, py::array::c_style | py::array::forcecast> params,
                                 adex::forcing_type const & forcing) {
-                         py::buffer_info info = params.request();
-                         double * ptr = static_cast<double *>(info.ptr);
-                         new (&m) adex(ptr, forcing);
+                         new (&m) adex(get_data(params), forcing);
                  })
             .def("__call__", [](adex const & m, adex::state_type const & X, double t) -> adex::state_type {
                             adex::state_type out;
@@ -60,5 +96,7 @@ PYBIND11_PLUGIN(models) {
                             bool r = m.reset(X);
                             return make_pair(r, X);
                     });
+    m.def("integrate_adex", &integrate_adex);
+    m.def("make_vector", &make_vector);
     return m.ptr();
 }
