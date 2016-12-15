@@ -7,12 +7,7 @@ if sys.hexversion < 0x02070000:
 
 from setuptools import setup, find_packages, Extension
 from setuptools.command.build_ext import build_ext
-
-# import numpy
-# try:
-#     numpy_include = numpy.get_include()
-# except AttributeError:
-#     numpy_include = numpy.get_numpy_include()
+import setuptools
 
 class get_pybind_include(object):
     """Helper class to determine the pybind11 include path
@@ -27,6 +22,17 @@ class get_pybind_include(object):
     def __str__(self):
         import pybind11
         return pybind11.get_include(self.user)
+
+
+class get_boost_include(object):
+    def __str__(self):
+        if sys.platform == "win32" :
+            return "C:/Boost/include/boost-1_32"
+        elif sys.platform == 'darwin':
+            return "/opt/local/include"
+        else:
+            return "/usr/include/boost"
+
 
 def has_flag(compiler, flagname):
     """Return a boolean indicating whether a flag name is supported on
@@ -84,7 +90,8 @@ class BuildExt(build_ext):
 _models = Extension("spyks.models",
                     sources=["src/spyks.cpp",
                              "src/neurons.cpp"],
-                    include_dirs=[get_pybind_include(), get_pybind_include(user=True)],
+                    include_dirs=[get_pybind_include(), get_pybind_include(user=True),
+                                  get_boost_include()],
                     language="c++")
 
 setup(
