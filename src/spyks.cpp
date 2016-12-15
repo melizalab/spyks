@@ -69,21 +69,15 @@ integrate_adex(adex const & model, adex::state_type const & x0, double dt)
         auto obs = pyarray_writer<adex>(nsteps);
         auto stepper = ode::euler<adex::state_type>();
         for (size_t i = 0; i < nsteps; ++i) {
+                bool reset = model.check_reset(x);
                 obs(x, t);
-                // if (!model.reset(x))
-                //         stepper.do_step(model, x, t, dt);
+                if (reset)
+                        model.reset_state(x);
+                else
+                        stepper.do_step(model, x, t, dt);
                 t += dt;
         }
         return std::make_pair(obs.X, obs.t.squeeze());
-        //
-        // m.set_forcing(forcing);
-        // while (t < tspan) {
-        //         out.write(x, t);
-        //         if (!m.reset(x))
-        //                 stepper.do_step(m, x, t, dt);
-        //         t += dt;
-        // }
-        // return out;
 }
 
 
