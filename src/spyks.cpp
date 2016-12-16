@@ -11,27 +11,6 @@ using namespace spyks;
 using namespace spyks::neurons;
 namespace ode = boost::numeric::odeint;
 
-
-// template<typename Model>
-// integrate_reset(py::array_t<double, py::array::c_style | py::array::forcecast> params,
-//                 typename Model::forcing_type const & forcing,
-//                 typename Model::state_type const & x0, double dt)
-// {
-//         double t = 0;
-//         double tspan = forcing.duration();
-//         Model::state_type x;
-//         timeseries out(tspan, dt);
-//         auto stepper = euler<adex::state_type>();
-//         m.set_forcing(forcing);
-//         while (t < tspan) {
-//                 out.write(x, t);
-//                 if (!m.reset(x))
-//                         stepper.do_step(m, x, t, dt);
-//                 t += dt;
-//         }
-//         return out;
-// }
-
 /** an observer that writes to a numpy array */
 template <typename Model>
 struct pyarray_writer {
@@ -47,17 +26,17 @@ struct pyarray_writer {
         py::array X;
 };
 
-
+template<typename Model, template<typename> class Stepper >
 py::array
-integrate_adex(adex const & model, adex::state_type const & x0, double dt)
+integrate(Model & model, typename Model::state_type x, double dt)
 {
+        typedef typename Model::state_type state_type;
         double t = 0;
         double tspan = model.forcing.duration();
         size_t nsteps = floor(tspan / dt) + 1;
-        adex::state_type x = x0;
-        std::vector<size_t> shape = { nsteps, adex::N_STATE };
-        auto obs = pyarray_writer<adex>(nsteps);
-        auto stepper = integrators::resetting_euler<adex::state_type>();
+
+        auto obs = pyarray_writer<Model>(nsteps);
+        auto stepper = Stepper<state_type>();
         ode::integrate_const(stepper, model, x, 0.0, tspan, dt, obs);
         return obs.X;
 }
@@ -105,6 +84,6 @@ PYBIND11_PLUGIN(models) {
                             m.reset_state(X);
                             return X;
                     });
-    m.def("integrate_adex", &integrate_adex);
+    m.def("integrate_adex", &integrate<adex, integrators::resetting_euler>);
     return m.ptr();
 }
