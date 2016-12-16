@@ -1,11 +1,10 @@
 #ifndef NEURONS_H
 #define NEURONS_H
 
-#include <vector>
 #include <array>
 #include <cmath>
 
-namespace neurons {
+namespace spyks { namespace neurons {
 
 /**
  * timeseries is a thin wrapper for a 1- or 2-D array that represents a
@@ -41,6 +40,7 @@ private:
         double _dt;
 };
 
+
 struct adex {
         static const size_t N_PARAM = 11;
         static const size_t N_STATE = 2;
@@ -62,7 +62,7 @@ struct adex {
         timeseries forcing;
 };
 
-}
+}} // namespace spykes::neurons
 
 
 #endif /* NEURONS_H */

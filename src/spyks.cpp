@@ -2,21 +2,16 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
-#include <boost/numeric/odeint.hpp>
 #include "neurons.hpp"
+#include "integrators.hpp"
 
 namespace py = pybind11;
 using namespace pybind11::literals;
+using namespace spyks;
+using namespace spyks::neurons;
 namespace ode = boost::numeric::odeint;
-using namespace neurons;
 
 
-template <typename Buffer>
-double * get_data(Buffer & b)
-{
-        py::buffer_info info = b.request();
-        return static_cast<double *>(info.ptr);
-}
 // template<typename Model>
 // integrate_reset(py::array_t<double, py::array::c_style | py::array::forcecast> params,
 //                 typename Model::forcing_type const & forcing,
@@ -42,42 +37,29 @@ template <typename Model>
 struct pyarray_writer {
         typedef typename Model::state_type state_type;
         pyarray_writer(size_t nsteps)
-                : step(0),
-                  X(py::dtype::of<double>(), {nsteps, Model::N_STATE}),
-                  t(py::dtype::of<double>(), {nsteps, 1}) {}
+                : step(0), X(py::dtype::of<double>(), {nsteps, Model::N_STATE}) {}
         void operator()(state_type const & x, double time) {
                 double * dptr = static_cast<double*>(X.mutable_data(step));
-                double * tptr = static_cast<double*>(t.mutable_data(step));
                 std::copy_n(x.begin(), Model::N_STATE, dptr);
-                *tptr = time;
                 ++step;
         }
         size_t step;
         py::array X;
-        py::array t;
 };
 
 
-std::pair<py::array, py::array>
+py::array
 integrate_adex(adex const & model, adex::state_type const & x0, double dt)
 {
         double t = 0;
         double tspan = model.forcing.duration();
-        size_t nsteps = floor(tspan / dt);
+        size_t nsteps = floor(tspan / dt) + 1;
         adex::state_type x = x0;
         std::vector<size_t> shape = { nsteps, adex::N_STATE };
         auto obs = pyarray_writer<adex>(nsteps);
-        auto stepper = ode::euler<adex::state_type>();
-        for (size_t i = 0; i < nsteps; ++i) {
-                bool reset = model.check_reset(x);
-                obs(x, t);
-                if (reset)
-                        model.reset_state(x);
-                else
-                        stepper.do_step(model, x, t, dt);
-                t += dt;
-        }
-        return std::make_pair(obs.X, obs.t.squeeze());
+        auto stepper = integrators::resetting_euler<adex::state_type>();
+        ode::integrate_const(stepper, model, x, 0.0, tspan, dt, obs);
+        return obs.X;
 }
 
 

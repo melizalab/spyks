@@ -81,11 +81,15 @@ def test_adex_reset():
 
 
 def test_adex_integration():
+    I = 500
     N = 1000
     dt = 0.05
     params = adex_params[0]['params']
     x0 = adex_params[0]['state']
-    data = nx.random.randn(N)
+    data = nx.ones(N) * I
     model = models.AdEx(params, models.timeseries(data, dt))
-    X, t = models.integrate_adex(model, x0, dt)
-    assert_true(((nx.diff(t) - dt) < 1e-10).all())
+    X = models.integrate_adex(model, x0, dt)
+    # with these parameters, there should be exactly one spike at 555
+    events = (X[:,0] > 29.9).nonzero()[0]
+    assert_equal(events.size, 1)
+    assert_equal(events[0], 555)

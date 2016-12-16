@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-using namespace neurons;
+using namespace spyks::neurons;
 
 adex::adex(double const * params, timeseries const & forcing) :
         C(params[0]), gl(params[1]), el(params[2]), delt(params[3]),
