@@ -62,6 +62,23 @@ struct adex {
         timeseries forcing;
 };
 
+struct nakl {
+        static const size_t N_PARAM = 26;
+        static const size_t N_STATE = 4;
+        static const size_t N_FORCING = 1;
+        typedef std::array<double, N_STATE> state_type;
+
+        nakl(double const * parameters, timeseries const & forcing);
+
+        /** Calculates equations of motion dX/dt = F(X, theta, t) */
+        void operator()(state_type const & X, state_type & dXdt, double t) const;
+
+        // TODO: use boost::units to check dimensions
+        double C, gna, Ena, gk, Ek, gl, El, vm, dvm, tm0, tm1, vmt, dvmt, vh, dvh,
+                th0, th1, vht, dvht, vn, dvn, tn0, tn1, vnt, dvnt, Isa;
+        timeseries forcing;
+};
+
 }} // namespace spykes::neurons
 
 

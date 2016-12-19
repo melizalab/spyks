@@ -37,7 +37,25 @@ integrate(Model & model, typename Model::state_type x, double dt)
 
         auto obs = pyarray_writer<Model>(nsteps);
         auto stepper = Stepper<state_type>();
+        // can't use std::ref on the model b/c the resetting stepper needs to
+        // call several methods
         ode::integrate_const(stepper, model, x, 0.0, tspan, dt, obs);
+        return obs.X;
+}
+
+template<typename Model>
+py::array
+integrate(Model & model, typename Model::state_type x, double dt)
+{
+        typedef typename Model::state_type state_type;
+        double t = 0;
+        double tspan = model.forcing.duration();
+        size_t nsteps = floor(tspan / dt) + 1;
+
+        auto obs = pyarray_writer<Model>(nsteps);
+        auto stepper = ode::runge_kutta_dopri5<state_type>();
+        ode::integrate_const(ode::make_dense_output(1.0e-4, 1.0e-4, stepper),
+                             std::ref(model), x, 0.0, tspan, dt, obs);
         return obs.X;
 }
 
@@ -84,6 +102,20 @@ PYBIND11_PLUGIN(models) {
                             m.reset_state(X);
                             return X;
                     });
-    m.def("integrate_adex", &integrate<adex, integrators::resetting_euler>);
+
+    py::class_<nakl>(m, "NaKL")
+            .def("__init__", [](nakl &m,
+                                py::array_t<double, py::array::c_style | py::array::forcecast> params,
+                                timeseries & forcing) {
+                         auto pptr = static_cast<double const *>(params.data());
+                         new (&m) nakl(pptr, forcing);
+                 })
+            .def("__call__", [](nakl const & m, nakl::state_type const & X, double t) -> nakl::state_type {
+                            nakl::state_type out;
+                            m(X, out, t);
+                            return out;
+                    });
+    m.def("integrate", &integrate<adex, integrators::resetting_euler>);
+    m.def("integrate", &integrate<nakl>);
     return m.ptr();
 }

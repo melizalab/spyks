@@ -88,8 +88,71 @@ def test_adex_integration():
     x0 = adex_params[0]['state']
     data = nx.ones(N) * I
     model = models.AdEx(params, models.timeseries(data, dt))
-    X = models.integrate_adex(model, x0, dt)
+    X = models.integrate(model, x0, dt)
     # with these parameters, there should be exactly one spike at 555
     events = (X[:,0] > 29.9).nonzero()[0]
     assert_equal(events.size, 1)
     assert_equal(events[0], 555)
+
+nakl_params = [
+    {'params': [1., 120., 50., 20., -77., 0.3, -54.4,
+                -40., 15., 0.1, 0.4, -40., 15., -60., -15.,
+                1., 7., -60., -15., -55., 30., 1., 5., -55., -30., 1.],
+     'forcing': [0.],
+     'state': [-70., 0., 0., 0.]},
+    {'params': [1., 120., 50., 20., -77., 0.3, -54.4,
+                -40., 15., 0.1, 0.4, -40., 15., -60., -15.,
+                1., 7., -60., -15., -55., 30., 1., 5., -55., -30., 1.],
+     'forcing': [100.],
+     'state': [-70., 0., 0.2, 0.1]},
+    {'params': [1.02, 70.7, 55., .38, -85., 0.054, -65,
+                -40., 15., 0.1, 0.4, -40., 15., -60., -15.,
+                1., 7., -60., -15., -55., 30., 1., 5., -55., -30., .042],
+     'forcing': [0.],
+     'state': [-65., 0.1, 0.2, 0.1]},
+]
+
+def py_nakl(X, params, Iinj):
+    C, gna, Ena, gk, Ek, gl, El, vm, dvm, tm0, tm1, vmt, dvmt, vh, dvh, \
+        th0, th1, vht, dvht, vn, dvn, tn0, tn1, vnt, dvnt, Isa = tuple(params)
+    V, m, h, n = tuple(X)
+
+    dV = 1/C * ((gna*m*m*m*h*(Ena - V)) +
+                (gk*n*n*n*n*(Ek - V)) +
+                (gl*(El-V)) + Iinj/Isa)
+
+    taum = tm0 + tm1 * (1-pow(nx.tanh((V - vmt)/dvmt),2))
+    m0 = (1+nx.tanh((V - vm)/dvm))/2
+    dm = (m0 - m)/taum
+
+    tauh = th0 + th1 * (1-pow(nx.tanh((V - vht)/dvht),2))
+    h0 = (1+nx.tanh((V - vh)/dvh))/2
+    dh = (h0 - h)/tauh
+
+    taun = tn0 + tn1 * (1-pow(nx.tanh((V - vnt)/dvnt),2))
+    n0 = (1+nx.tanh((V - vn)/dvn))/2
+    dn = (n0 - n)/taun
+
+    return (dV, dm, dh, dn)
+
+
+def test_nakl_dxdt():
+    def compare_nakl(params, forcing, state):
+        inj = models.timeseries(forcing, 0.05)
+        model = models.NaKL(params, inj)
+        dXdt = model(state, 0)
+        assert_true(nx.allclose(dXdt, py_nakl(state, params, forcing[0])))
+    for tvals in nakl_params:
+        yield compare_nakl, tvals['params'], tvals['forcing'], tvals['state']
+
+
+def test_nakl_integration():
+    I = 50
+    N = 1000
+    dt = 0.05
+    params = nakl_params[0]['params']
+    x0 = nakl_params[0]['state']
+    data = nx.ones(N) * I
+    model = models.NaKL(params, models.timeseries(data, dt))
+    X = models.integrate(model, x0, dt)
+    # with these parameters, there should be six spikes
