@@ -1,0 +1,25 @@
+---
+name: biocm
+author: dmeliza
+defaults:
+  C: 1 pF
+  E_l: -65 mV
+  E_na: 55 mV
+  E_k: -70 mV
+  E_h: -43 mV
+  g_l: 2 nS
+  g_na: 1000 nS
+  g_kdr: 0 nS
+  g_ka: 0 nS
+  g_kht: 150 nS
+  g_klt: 0 nS
+  g_h: 0.5 nS
+  nam_v: -38 mV
+  nam_dv: -7 mV
+  nam_tau: 0.04 ms
+  nah_v: -65 mV
+  nah_dv: 6 mV
+  nah_tau: 5 ms
+  kdrm_v: -7 mV                 # from Martina et al 1998
+  kdrm_dv: -11.5 mV
+  kdrm_p:

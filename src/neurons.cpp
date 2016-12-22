@@ -1,4 +1,3 @@
-
 #include "neurons.hpp"
 #include <algorithm>
 #include <cmath>
@@ -69,4 +68,120 @@ nakl::operator()(state_type const & X, state_type & dXdt, double t) const
         double taun = tn0 + tn1 * (1-square(tanh((V - vnt)/dvnt)));
         double n0 = (1+tanh((V - vn)/dvn))/2;
         dXdt[3] = (n0 - n)/taun;
+}
+
+biocm::biocm(double const * params, timeseries const & forcing) :
+        C(params[0]), g_l(params[1]), E_l(params[2]), g_na(params[3]),
+        E_na(params[4]), g_kdr(params[5]), E_k(params[6]), g_ka(params[7]),
+        g_klt(params[8]), g_kht(params[9]), kht_phi(params[10]),
+        g_hcn(params[11]), E_h(params[12]), Isa(params[13]), nam_v(params[14]),
+        nam_dv(params[15]), nam_tau(params[16]), nah_v(params[17]),
+        nah_dv(params[18]), nah_tau(params[19]), kdrm_v(params[20]),
+        kdrm_dv(params[21]), kdrm_p(params[22]), kdrm_tau(params[23]),
+        kam_v(params[24]), kam_dv(params[25]), kam_p(params[26]),
+        kam_t0(params[27]), kam_t1(params[28]), kam_tv(params[29]),
+        kam_tdv1(params[30]), kam_t2(params[31]), kam_tdv2(params[32]),
+        kah_v(params[33]), kah_dv(params[34]), kah_p(params[35]),
+        kah_t0(params[36]), kah_t1(params[37]), kah_tv(params[38]),
+        kah_tdv1(params[39]), kah_t2(params[40]), kah_tdv2(params[41]),
+        kac_t0(params[42]), kac_t1(params[43]), kac_tv(params[44]),
+        kac_tdv1(params[45]), kltm_v(params[46]), kltm_dv(params[47]),
+        kltm_p(params[48]), kltm_t0(params[49]), kltm_t1(params[50]),
+        kltm_tv(params[51]), kltm_tdv1(params[52]), kltm_t2(params[53]),
+        kltm_tdv2(params[54]), klth_v(params[55]), klth_dv(params[56]),
+        klth_z(params[57]), klth_t0(params[58]), klth_t1(params[59]),
+        klth_tv(params[60]), klth_tdv1(params[61]), klth_t2(params[62]),
+        klth_tdv2(params[63]), khtm_v(params[64]), khtm_dv(params[65]),
+        khtm_p(params[66]), khtm_t0(params[67]), khtm_t1(params[68]),
+        khtm_tv(params[69]), khtm_tdv1(params[70]), khtm_t2(params[71]),
+        khtm_tdv2(params[72]), khtn_v(params[73]), khtn_dv(params[74]),
+        khtn_t0(params[75]), khtn_t1(params[76]), khtn_tv(params[77]),
+        khtn_tdv1(params[78]), khtn_t2(params[79]), khtn_tdv2(params[80]),
+        hcnh_v(params[81]), hcnh_dv(params[82]), hcnh_t0(params[83]),
+        hcnh_t1(params[84]), hcnh_tv(params[85]), hcnh_tdv1(params[86]),
+        hcnh_t2(params[87]), hcnh_tdv2(params[88]), forcing(forcing)
+{}
+
+void
+biocm::operator()(state_type const & X, state_type & dXdt, double t) const
+{
+        double sstate, tau;
+        const double &V = X[0], &na_m = X[1], &na_h = X[2],
+                &kdr_m = X[3], &ka_m = X[4], &ka_h = X[5],
+                &ka_c = X[6], &klt_m = X[7], &klt_h = X[8],
+                &kht_m = X[9], &kht_n = X[10], &hcn_h = X[11];
+        double  &dV = dXdt[0], &dna_m = dXdt[1], &dna_h = dXdt[2],
+                &dkdr_m = dXdt[3], &dka_m = dXdt[4], &dka_h = dXdt[5],
+                &dka_c = dXdt[6], &dklt_m = dXdt[7], &dklt_h = dXdt[8],
+                &dkht_m = dXdt[9], &dkht_n = dXdt[10], &dhcn_h = dXdt[11];
+        const double I = forcing(0, t);
+
+        // dV
+        dV = 1/C * (g_l * (E_l - V) +
+                    g_na * na_m * na_m * na_m * na_h * (E_na - V) +    // Traub-Miles sodium
+                    g_kdr * kdr_m * kdr_m * kdr_m * kdr_m * (E_k - V) + // Traub-Miles delayed rectifier
+                    // from Rothman and Manis
+                    g_ka * ka_m * ka_m * ka_m * ka_m * ka_h  * ka_c * (E_k - V) +
+                    g_klt * klt_m * klt_m * klt_m * klt_m * klt_h * (E_k - V) +
+                    g_kht * (kht_phi * kht_m * kht_m + (1 - kht_phi) * kht_n) * (E_k - V) +
+                    g_hcn * hcn_h * (E_h + V) +
+                    I / Isa);
+        // Na_m
+        sstate = 1/(1 + exp((V - nam_v) / nam_dv));
+        dna_m = (sstate - na_m) / nam_tau;
+
+        // Na_h
+        sstate = 1/(1 + exp((V - nah_v) / nah_dv));
+        dna_h = (sstate - na_h) / nah_tau;
+
+        // KDR
+        sstate = pow(1 + exp((V - kdrm_v) / kdrm_dv), kdrm_p);
+        dkdr_m = (sstate - kdr_m) / kdrm_tau;
+
+        // KA_m
+        sstate = pow(1 + exp((V - kam_v) / kam_dv), kam_p);
+        tau = kam_t0 + 1/(kam_t1 * exp((V - kam_tv) / kam_tdv1) +
+                           kam_t2 * exp((-V - kam_tv) / kam_tdv2));
+        dka_m = (sstate - ka_m) / tau;
+
+        // KA_h
+        sstate = pow(1 + exp((V - kah_v) / kah_dv), kah_p);
+        tau = kah_t0 + 1/(kah_t1 * exp((V - kah_tv) / kah_tdv1) +
+                           kah_t2 * exp((-V - kah_tv) / kah_tdv2));
+        dka_h = (sstate - ka_h) / tau;
+
+        // KA_c (secondary inactivation variable)
+        // steady-state is same as h
+        tau = kac_t0 + kac_t1/(1 + exp((V - kac_tv) / kah_tdv1));
+        dka_c = (sstate - ka_c) / tau;
+
+        // KLT_m
+        sstate = pow(1 + exp((V - kltm_v) / kltm_dv), kltm_p);
+        tau = kltm_t0 + 1/(kltm_t1 * exp((V - kltm_tv) / kltm_tdv1) +
+                           kltm_t2 * exp((-V - kltm_tv) / kltm_tdv2));
+        dklt_m = (sstate - klt_m) / tau;
+
+        // KLT_h
+        sstate = (1 - klth_z) / (1 + exp((V - klth_v) / klth_dv)) + klth_z;
+        tau = klth_t0 + 1/(klth_t1 * exp((V - klth_tv) / klth_tdv1) +
+                           klth_t2 * exp((-V - klth_tv) / klth_tdv2));
+        dklt_h = (sstate - klt_h) / tau;
+
+        // KHT_m
+        sstate = pow(1 + exp((V - khtm_v) / khtm_dv), khtm_p);
+        tau = khtm_t0 + 1/(khtm_t1 * exp((V - khtm_tv) / khtm_tdv1) +
+                           khtm_t2 * exp((-V - khtm_tv) / khtm_tdv2));
+        dkht_m = (sstate - kht_m) / tau;
+
+        // KHT_n (second activation variable)
+        sstate = 1/(1 + exp((V - khtn_v) / khtn_dv));
+        tau = khtn_t0 + 1/(khtn_t1 * exp((V - khtn_tv) / khtn_tdv1) +
+                           khtn_t2 * exp((-V - khtn_tv) / khtn_tdv2));
+        dkht_n = (sstate - kht_n) / tau;
+
+        // HCN
+        sstate = 1/(1 + exp((V - hcnh_v) / hcnh_dv));
+        tau = hcnh_t0 + 1/(hcnh_t1 * exp((V - hcnh_tv) / hcnh_tdv1) +
+                           hcnh_t2 * exp((-V - hcnh_tv) / hcnh_tdv2));
+        dhcn_h = (sstate - hcn_h) / tau;
 }
