@@ -1,0 +1,42 @@
+---
+name: nakl
+author: dmeliza
+version: 1.0
+state:
+  V: -70 mV
+  m: 0
+  h: 0
+  n: 0
+forcing:
+  Iinj: 0 pA
+equations:
+  V: 1/C * ((gna*m*m*m*h*(Ena - V)) + (gk*n*n*n*n*(Ek - V)) + (gl*(El-V)) + Iinj)
+  m: ((1+tanh((V - vm)/dvm))/2 - m) / (tm0 + tm1 * (1-pow(tanh((V - vmt)/dvmt),2)))
+  h: ((1+tanh((V - vh)/dvh))/2 - h) / (th0 + th1 * (1-pow(tanh((V - vht)/dvht),2)))
+  n: ((1+tanh((V - vn)/dvn))/2 - n) / (tn0 + tn1 * (1-pow(tanh((V - vnt)/dvnt),2)))
+parameters:
+  C: 250 pF
+  gna: 120 nS
+  Ena: 50 mV
+  gk: 20 nS
+  Ek: -77 mV
+  gl: 0.3 nS
+  El: -54.4 mV
+  vm: -40 mV
+  dvm: 15 mV
+  tm0: 0.1 ms
+  tm1: 0.4 ms
+  vmt: -40 mV
+  dvmt: 15 mV
+  vh: -60 mV
+  dvh: -15 mV
+  th0: 1 ms
+  th1: 7 ms
+  vht: -60 mV
+  dvht: -15 mV
+  vn: -55 mV
+  dvn: 40 mV
+  tn0: 1 ms
+  tn1: 5 ms
+  vnt: -55 mV
+  dvnt: -30 mV
