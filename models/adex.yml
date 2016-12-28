@@ -1,0 +1,30 @@
+---
+name: adex
+author: dmeliza
+version: 1.0
+state:
+  V: -70 mV
+  w: 0 pA                       # units not biophysically meaningful
+forcing:
+  Iinj: 0 pA
+equations:
+  V: 1 / C *  (-gl * (V - el) + gl * delt * exp((V - vt) / delt) - w + Iinj)
+  w: 1/ tw * (a * (V - el) - w)
+reset:
+  predicate: V >= h
+  pre:
+    V: h
+  post:
+    V: vr
+    w: w + b
+parameters:
+  C: 250 pF
+  gl: 30 nS
+  el: -70.6 mV
+  delt: 2.0 mV
+  vt: -55 mV
+  tw: 144 pF
+  a: 4 nS
+  vr: -70.6 mV
+  b: 80.5 pA
+  h: 30 mV
