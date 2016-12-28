@@ -25,26 +25,43 @@ def load_model(fname):
     return model
 
 
-def param_values(model):
-    """ Extracts model parameter values into a dimensionless array. """
-    p = model['parameters']
-    return nx.fromiter((v.magnitude for v in p.values()), dtype='d', count=len(p))
+def to_array(mapping):
+    """ Converts named list of quantities into a dimensionless array. """
+    return nx.fromiter((v.magnitude for k, v in mapping), dtype='d', count=len(mapping))
 
 
-def units(x):
-    """ Returns the units of x. If x is a Unit object, returns itself """
-    return getattr(x, 'units', x)
-
-
-def bind(values, mapping):
+def to_mapping(values, mapping):
     """ Binds values in vector to names and units in mapping """
-    return [(k, x * units(v)) for  (k, v), x in zip(mapping, values) ]
+    return [(k, x * getattr(v, 'units', v)) for  (k, v), x in zip(mapping, values) ]
+
+
+def update_values(model, **kwargs):
+    """ Updates values in the model. Keyword arguments must match existing keys """
+    for key, values in kwargs.items():
+        model[key] = to_mapping(values, model[key])
+
 
 math_funs = {'exp': nx.exp, 'tanh': nx.tanh, 'pow': nx.power}
 
-def deriv(model):
-    """ Evaluates the model system dX/dt = F(X, t) """
+def context(model):
     context = dict(model['state'], **math_funs)
     context.update(model['forcing'])
     context.update(model['parameters'])
-    return [(variable, eval(eqn, {}, context)) for variable, eqn in model['equations'].items()]
+    return context
+
+
+def deriv(model):
+    """ Evaluates the model system dX/dt = F(X, t) """
+    ctx = context(model)
+    return [(variable, eval(eqn, {}, ctx)) for variable, eqn in model['equations'].items()]
+
+
+def check_reset(model):
+    """ Evaluates the model's reset condition """
+    return eval(model['reset']['predicate'], {}, context(model))
+
+
+def reset(model):
+    """ Returns the model's post-reset state """
+    ctx = context(model)
+    return [(variable, eval(eqn, {}, ctx)) for variable, eqn in model['reset']['state'].items()]

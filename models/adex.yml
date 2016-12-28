@@ -12,9 +12,7 @@ equations:
   w: 1/ tw * (a * (V - el) - w)
 reset:
   predicate: V >= h
-  pre:
-    V: h
-  post:
+  state:
     V: vr
     w: w + b
 parameters:
