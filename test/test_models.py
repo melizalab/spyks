@@ -131,3 +131,15 @@ def test_nakl_integration():
     model = models.NaKL(params, models.timeseries(data, dt))
     X = models.integrate(model, x0, dt)
     # with these parameters, there should be six spikes
+
+
+def test_biocm():
+    pymodel = core.load_model("models/biocm.yml")
+    params = core.to_array(pymodel['parameters'])
+    forcing = core.to_array(pymodel['forcing'])
+    state = core.to_array(pymodel['state']).tolist()
+    inj = models.timeseries(forcing, 0.05)
+    model = models.biocm(params, inj)
+    dXdt = model(state, 0)
+    pydXdt = core.to_array(core.deriv(pymodel))
+    assert_true(nx.allclose(dXdt, pydXdt))

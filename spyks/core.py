@@ -7,10 +7,10 @@ import numpy as nx
 ureg = pq.UnitRegistry()
 
 def parse_quantity(x):
-    try:
-        return ureg.parse_expression(x)
-    except AttributeError:
+    if isinstance(x, (float, int)):
         return x * ureg.dimensionless
+    else:
+        return ureg.parse_expression(x)
 
 
 def load_model(fname):

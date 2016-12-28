@@ -1,7 +1,60 @@
 ---
 name: biocm
 author: dmeliza
-defaults:
+version: 1.0
+state:
+  V: -70 mV
+  na_m: 0
+  na_h: 0
+  kdr_m: 0
+  ka_m: 0
+  ka_h: 0
+  ka_c: 0
+  klt_m: 0
+  klt_h: 0
+  kht_m: 0
+  kht_n: 0
+  hcn_h: 0
+equations:
+  V: >
+    1/C * (g_l * (E_l - V) +
+           g_na * na_m * na_m * na_m * na_h * (E_na - V) +
+           g_kdr * kdr_m * kdr_m * kdr_m * kdr_m * (E_k - V) +
+           g_ka * ka_m * ka_m * ka_m * ka_m * ka_h  * ka_c * (E_k - V) +
+           g_klt * klt_m * klt_m * klt_m * klt_m * klt_h * (E_k - V) +
+           g_kht * (kht_phi * kht_m * kht_m + (1 - kht_phi) * kht_n) * (E_k - V) +
+           g_hcn * hcn_h * (E_h + V) +
+           Iinj)
+  na_m: (1/(1 + exp(-(V - nam_v) / nam_dv)) - na_m) / nam_tau
+  na_h: (1/(1 + exp((V - nah_v) / nah_dv)) - na_h) / nah_tau
+  kdr_m: (1/(1 + exp(-(V - kdrm_v) / kdrm_dv)) - kdr_m) / kdrm_tau
+  ka_m: >
+    (pow(1 + exp(-(V - kam_v) / kam_dv), kam_p) - ka_m) /
+    (kam_t0 + 1/(kam_t1 * exp((V - kam_tv) / kam_tdv1) + kam_t2 * exp((-V - kam_tv) / kam_tdv2)))
+  ka_h: >-
+    (pow(1 + exp((V - kah_v) / kah_dv), kah_p) - ka_h) /
+    (kah_t0 + 1/(kah_t1 * exp((V - kah_tv) / kah_tdv1) + kah_t2 * exp((-V - kah_tv) / kah_tdv2)))
+  ka_c: >
+    (pow(1 + exp((V - kah_v) / kah_dv), kah_p) - ka_c) /
+    (kac_t0 + kac_t1/(1 + exp(-(V - kac_tv) / kah_tdv1)))
+  klt_m: >
+    (pow(1 + exp(-(V - kltm_v) / kltm_dv), kltm_p) - klt_m) /
+    (kltm_t0 + 1/(kltm_t1 * exp((V - kltm_tv) / kltm_tdv1) + kltm_t2 * exp((-V - kltm_tv) / kltm_tdv2)))
+  klt_h: >
+    ((1 - klth_z) / (1 + exp((V - klth_v) / klth_dv)) + klth_z - klt_h) /
+    (klth_t0 + 1/(klth_t1 * exp((V - klth_tv) / klth_tdv1) + klth_t2 * exp((-V - klth_tv) / klth_tdv2)))
+  kht_m: >
+    (pow(1 + exp(-(V - khtm_v) / khtm_dv), khtm_p) - kht_m) /
+    (khtm_t0 + 1/(khtm_t1 * exp((V - khtm_tv) / khtm_tdv1) + khtm_t2 * exp((-V - khtm_tv) / khtm_tdv2)))
+  kht_n: >-
+    (1/(1 + exp(-(V - khtn_v) / khtn_dv)) - kht_n) /
+    (khtn_t0 + 1/(khtn_t1 * exp((V - khtn_tv) / khtn_tdv1) + khtn_t2 * exp((-V - khtn_tv) / khtn_tdv2)))
+  hcn_h: >-
+    (1/(1 + exp((V - hcnh_v) / hcnh_dv)) - hcn_h) /
+    (hcnh_t0 + 1/(hcnh_t1 * exp((V - hcnh_tv) / hcnh_tdv1) + hcnh_t2 * exp((-V - hcnh_tv) / hcnh_tdv2)))
+forcing:
+  Iinj: 0 pA
+parameters:
   C: 1 pF
   E_l: -65 mV
   E_na: 55 mV
@@ -13,13 +66,79 @@ defaults:
   g_ka: 0 nS
   g_kht: 150 nS
   g_klt: 0 nS
-  g_h: 0.5 nS
+  g_hcn: 0.5 nS
   nam_v: -38 mV
-  nam_dv: -7 mV
+  nam_dv: 7 mV
   nam_tau: 0.04 ms
   nah_v: -65 mV
   nah_dv: 6 mV
   nah_tau: 5 ms
   kdrm_v: -7 mV                 # from Martina et al 1998
-  kdrm_dv: -11.5 mV
-  kdrm_p:
+  kdrm_dv: 11.5 mV
+  kdrm_tau: 2 ms
+  kam_v: -31 mV
+  kam_dv: 6 mV
+  kam_p: 0.25
+  kam_t0: 0.1 ms
+  kam_t1: 0.07 1/ms
+  kam_tv: -60 mV
+  kam_tdv1: 14 mV
+  kam_t2: 0.29 1/ms
+  kam_tdv2: 24 mV
+  kah_v: -66 mV
+  kah_dv: 7 mV
+  kah_p: 0.5
+  kah_t0: 1.0 ms
+  kah_t1: 0.014 1/ms
+  kah_tv: -60 mV
+  kah_tdv1: 27 mV
+  kah_t2: 0.029 1/ms
+  kah_tdv2: 24 mV
+  kac_t0: 50 ms
+  kac_t1: 90 ms
+  kac_tv: -66 mV
+  kac_tdv1: 17 mV
+  kltm_v: -48 mV
+  kltm_dv: 6 mV
+  kltm_p: 0.25
+  kltm_t0: 1.5 ms
+  kltm_t1: 0.06 1/ms
+  kltm_tv: -60 mV
+  kltm_tdv1: 6 mV
+  kltm_t2: 0.16 1/ms
+  kltm_tdv2: 45 mV
+  klth_z: 0.5
+  klth_v: -71 mV
+  klth_dv: -10 mV
+  klth_t0: 50 ms
+  klth_t1: .001 1/ms
+  klth_tv: -60 mV
+  klth_tdv1: 20 mV
+  klth_t2: 0.001 1/ms
+  klth_tdv2: 8 mV
+  kht_phi: 0.85
+  khtm_v: -15 mV
+  khtm_dv: 5 mV
+  khtm_p: 0.5
+  khtm_t0: 0.7 ms
+  khtm_t1: 0.11 1/ms
+  khtm_tv: -60 mV
+  khtm_tdv1: 24 mV
+  khtm_t2: 0.21 1/ms
+  khtm_tdv2: 23 mV
+  khtn_v: -23 mV
+  khtn_dv: 6 mV
+  khtn_t0: 5 ms
+  khtn_t1: 0.04 1/ms
+  khtn_tv: -60 mV
+  khtn_tdv1: 32 mV
+  khtn_t2: 0.05 1/ms
+  khtn_tdv2: 22 mV
+  hcnh_v: -76 mV
+  hcnh_dv: 7 mV
+  hcnh_t0: 25 ms
+  hcnh_t1: 237e-5 1/ms
+  hcnh_tv: -60 mV
+  hcnh_tdv1: 12 mV
+  hcnh_t2: 17e-5 1/ms
+  hcnh_tdv2: 14 mV

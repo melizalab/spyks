@@ -115,7 +115,20 @@ PYBIND11_PLUGIN(models) {
                             m(X, out, t);
                             return out;
                     });
+    py::class_<biocm>(m, "biocm")
+            .def("__init__", [](biocm &m,
+                                py::array_t<double, py::array::c_style | py::array::forcecast> params,
+                                timeseries & forcing) {
+                         auto pptr = static_cast<double const *>(params.data());
+                         new (&m) biocm(pptr, forcing);
+                 })
+            .def("__call__", [](biocm const & m, biocm::state_type const & X, double t) -> biocm::state_type {
+                            biocm::state_type out;
+                            m(X, out, t);
+                            return out;
+                    });
     m.def("integrate", &integrate<adex, integrators::resetting_euler>);
     m.def("integrate", &integrate<nakl>);
+    m.def("integrate", &integrate<biocm>);
     return m.ptr();
 }
