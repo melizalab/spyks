@@ -37,6 +37,7 @@ public:
         }
 };
 
+
 }}  // namespace spyks::integrators
 
 #endif /* INTEGRATORS_H */

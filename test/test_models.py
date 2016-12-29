@@ -77,20 +77,20 @@ def test_adex_reset():
     for tvals in adex_params:
         yield compare_reset, tvals['params'], tvals['forcing'], tvals['state']
 
-
-# def test_adex_integration():
-#     I = 500
-#     N = 1000
-#     dt = 0.05
-#     params = adex_params[0]['params']
-#     x0 = adex_params[0]['state']
-#     data = nx.ones(N) * I
-#     model = models.AdEx(params, models.timeseries(data, dt))
-#     X = models.integrate(model, x0, dt)
-#     # with these parameters, there should be exactly one spike at 555
-#     events = (X[:,0] > 29.9).nonzero()[0]
-#     assert_equal(events.size, 1)
-#     assert_equal(events[0], 555)
+def test_adex_integration():
+    I = 500
+    N = 1000
+    dt = 0.05
+    params = adex_params[0]['params']
+    x0 = adex_params[0]['state']
+    data = nx.ones(N) * I
+    #model = models.AdEx(params, models.timeseries(data, dt))
+    X = adex.integrate(params, x0, data, dt, dt)
+    # with these parameters, there should be exactly one spike at 555
+    events = (X[:,0] > 29.9).nonzero()[0]
+    assert_equal(events.size, 1)
+    assert_equal(events[0], 555)
+    return X
 
 # nakl_params = [
 #     {'params': [1., 120., 50., 20., -77., 0.3, -54.4,

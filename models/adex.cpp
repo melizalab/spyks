@@ -4,6 +4,11 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 #include "utility.hpp"
+#include "integrators.hpp"
+
+namespace py = pybind11;
+using namespace pybind11::literals;
+namespace ode = boost::numeric::odeint;
 
 namespace spyks { namespace models {
 
@@ -43,8 +48,19 @@ struct adex {
 
 }}
 
-namespace py = pybind11;
-using namespace pybind11::literals;
+template<typename Model>
+py::array
+integrate(Model & model, typename Model::state_type x, double tmax, double dt)
+{
+        typedef typename Model::state_type state_type;
+        double t = 0;
+        size_t nsteps = floor(tmax / dt) + 1;
+        auto obs = spyks::pyarray_writer<Model>(nsteps);
+        auto stepper = spyks::integrators::resetting_euler<state_type>();
+        ode::integrate_const(stepper, model, x, 0.0, tmax, dt, obs);
+        return obs.X;
+}
+
 using spyks::models::adex;
 
 PYBIND11_PLUGIN(adex) {
@@ -71,5 +87,18 @@ PYBIND11_PLUGIN(adex) {
                             m.reset_state(X);
                             return X;
                     });
+    m.def("integrate", [](py::array_t<double, py::array::c_style | py::array::forcecast> params,
+                          adex::state_type x0,
+                          py::array_t<double, py::array::c_style | py::array::forcecast> forcing,
+                          double forcing_dt, double stepping_dt) -> py::array {
+                  double const * pptr = static_cast<double const *>(params.data());
+                  py::buffer_info forcing_info = forcing.request();
+                  double const * dptr = static_cast<double const *>(forcing_info.ptr);
+                  double tmax = forcing_info.shape[0] * forcing_dt;
+                  adex model(pptr, dptr, forcing_dt);
+                  return integrate(model, x0, tmax, stepping_dt);
+          },
+          "Integrates adex model from starting state x0 over the duration of the forcing timeseries",
+          "params"_a, "x0"_a, "forcing"_a, "forcing_dt"_a, "stepping_dt"_a);
     return m.ptr();
 }
