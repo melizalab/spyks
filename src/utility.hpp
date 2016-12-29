@@ -8,12 +8,15 @@ namespace py = pybind11;
 
 namespace spyks {
 
-template<typename T>
+template<typename T> inline
 T const * interpolate(double t, T const * data, double dt, size_t NC)
 {
         size_t index = std::round(t / dt);
         return data + index * NC;
 }
+
+template<typename T> inline
+T square(T x) { return x * x; }
 
 /** an observer that writes to a numpy array */
 template <typename Model>

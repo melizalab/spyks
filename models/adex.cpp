@@ -32,8 +32,6 @@ struct adex {
                 dXdt[1] = 1/params[5] * (params[6] * (X[0] - params[2]) - X[1]);
         }
 
-
-
         bool reset(state_type & X) const {
                 if (X[0] < params[9])
                         return false;
@@ -43,19 +41,6 @@ struct adex {
                         return true;
                 }
         }
-
-        bool check_reset(state_type & X) const {
-                if (X[0] < params[9])
-                        return false;
-                X[0] = params[9];
-                return true;
-        }
-
-        void reset_state(state_type & X) const {
-                X[0] = params[7];
-                X[1] += params[8];
-        }
-
 };
 
 }}
