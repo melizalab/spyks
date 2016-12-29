@@ -5,6 +5,7 @@ import sys
 if sys.hexversion < 0x02070000:
     raise RuntimeError("Python 2.7 or higher required")
 
+import os,glob
 from setuptools import setup, find_packages, Extension
 from setuptools.command.build_ext import build_ext
 import setuptools
@@ -86,24 +87,22 @@ class BuildExt(build_ext):
             ext.extra_compile_args = opts
         build_ext.build_extensions(self)
 
-
-_models = Extension("spyks.models",
-                    sources=["src/spyks.cpp",
-                             "src/neurons.cpp"],
+_modelfiles = glob.glob("models/*.cpp")
+_models = [Extension("spyks.models.{}".format(os.path.splitext(os.path.basename(fname))[0]),
+                    sources=[fname],
                     include_dirs=[get_pybind_include(), get_pybind_include(user=True),
-                                  get_boost_include()],
+                                  get_boost_include(), "src/"],
                     language="c++")
+           for fname in _modelfiles]
 
 setup(
     name="spyks",
     version="0.2.0",
     packages= find_packages(exclude=["*test*"]),
     cmdclass = {'build_ext': BuildExt},
-    ext_modules=[_models],
+    ext_modules= _models,
 
-      description="minimalist spiking neuron model library",
-      author="Tyler Robbins",
-      author_email="tdr5wc at the domain 'virginia.edu'",
-
-
+    description="minimalist spiking neuron model library",
+    author="Tyler Robbins",
+    author_email="tdr5wc at the domain 'virginia.edu'",
 )
