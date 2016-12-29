@@ -144,8 +144,8 @@ def test_biocm():
     pydXdt = core.to_array(core.deriv(pymodel))
     assert_true(nx.allclose(dXdt, pydXdt))
 
-def test_biocm_integration(I=50):
-    N = 1000
+def test_biocm_integration(I=20):
+    N = 5000
     dt = 0.05
     pymodel = core.load_model("models/biocm.yml")
     params = core.to_array(pymodel['parameters'])

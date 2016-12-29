@@ -26,7 +26,9 @@ equations:
            g_hcn * hcn_h * (E_h + V) +
            Iinj)
   na_m: (1/(1 + exp(-(V - nam_v) / nam_dv)) - na_m) / nam_tau
-  na_h: (1/(1 + exp((V - nah_v) / nah_dv)) - na_h) / nah_tau
+  na_h: >
+    (1/(1 + exp((V - nah_v) / nah_dv)) - na_h) /
+    (nah_t0 + 1/(nah_t1 * exp((V - nah_tv) / nah_tdv1) + nah_t2 * exp(-(V - nah_tv) / nah_tdv2)))
   kdr_m: (1/(1 + exp(-(V - kdrm_v) / kdrm_dv)) - kdr_m) / kdrm_tau
   ka_m: >
     (pow(1 + exp(-(V - kam_v) / kam_dv), kam_p) - ka_m) /
@@ -72,7 +74,12 @@ parameters:
   nam_tau: 0.04 ms
   nah_v: -65 mV
   nah_dv: 6 mV
-  nah_tau: 5 ms
+  nah_t0: 0.6 ms
+  nah_t1: 0.07 1/ms
+  nah_tv: -60 mV
+  nah_tdv1: 11 mV
+  nah_t2: 0.10 1/ms
+  nah_tdv2: 25 mV
   kdrm_v: -7 mV                 # from Martina et al 1998
   kdrm_dv: 11.5 mV
   kdrm_tau: 2 ms
