@@ -32,6 +32,18 @@ struct adex {
                 dXdt[1] = 1/params[5] * (params[6] * (X[0] - params[2]) - X[1]);
         }
 
+
+
+        bool reset(state_type & X) const {
+                if (X[0] < params[9])
+                        return false;
+                else {
+                        X[0] = params[7];
+                        X[1] += params[8];
+                        return true;
+                }
+        }
+
         bool check_reset(state_type & X) const {
                 if (X[0] < params[9])
                         return false;
@@ -79,14 +91,11 @@ PYBIND11_PLUGIN(adex) {
                             m(X, out, t);
                             return out;
                     })
-            .def("check_reset", [](adex const & m, adex::state_type & X) -> std::pair<bool, adex::state_type> {
-                            bool r = m.check_reset(X);
-                            return make_pair(r, X);
-                    })
-            .def("reset_state", [](adex const & m, adex::state_type & X) -> adex::state_type {
-                            m.reset_state(X);
-                            return X;
+            .def("reset", [](adex const & m, adex::state_type & X) {
+                            bool r = m.reset(X);
+                            return std::make_pair(r, X);
                     });
+
     m.def("integrate", [](py::array_t<double, py::array::c_style | py::array::forcecast> params,
                           adex::state_type x0,
                           py::array_t<double, py::array::c_style | py::array::forcecast> forcing,

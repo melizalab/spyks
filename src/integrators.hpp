@@ -17,22 +17,13 @@ public:
 
         static order_type order( void ) { return 1; }
 
-        bool in_reset;
-
-        resetting_euler() : in_reset(false) {}
-
         template <typename System>
         void do_step(System system, state_type & x, time_type t, time_type dt) {
-                deriv_type dxdt;
-                if (in_reset) {
-                        system.reset_state(x);
-                        in_reset = false;
-                }
-                else {
+                if (!system.reset(x)) {
+                        deriv_type dxdt;
                         system(x, dxdt, t);
                         for (size_t i = 0; i < x.size(); ++i)
                                 x[i] += dt * dxdt[i];
-                        in_reset = system.check_reset(x);
                 }
         }
 };

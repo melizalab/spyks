@@ -64,16 +64,15 @@ def test_adex_reset():
     pymodel = s.load_model("models/adex.yml")
     def compare_reset(params, forcing, state):
         model = adex.model(params, forcing, 0.05)
-        reset, pre_state = model.check_reset(state)
+        reset, new_state = model.reset(state)
         s.update_model(pymodel, state=state, forcing=forcing, parameters=params)
         pyreset = sv.check_reset(pymodel)
         assert_equal(reset, pyreset)
         if reset:
-            post_state = model.reset_state(state)
             pypost_state = s.to_array(sv.reset(pymodel))
-            assert_true(nx.allclose(post_state, pypost_state))
-        # else:
-        #     assert_true(nx.allclose(state, pypost_state))
+            assert_true(nx.allclose(new_state, pypost_state))
+        else:
+            assert_true(nx.allclose(state, new_state))
     for tvals in adex_params:
         yield compare_reset, tvals['params'], tvals['forcing'], tvals['state']
 
