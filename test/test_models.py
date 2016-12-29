@@ -143,3 +143,14 @@ def test_biocm():
     dXdt = model(state, 0)
     pydXdt = core.to_array(core.deriv(pymodel))
     assert_true(nx.allclose(dXdt, pydXdt))
+
+def test_biocm_integration(I=50):
+    N = 1000
+    dt = 0.05
+    pymodel = core.load_model("models/biocm.yml")
+    params = core.to_array(pymodel['parameters'])
+    x0 = core.to_array(pymodel['state']).tolist()
+    data = nx.ones(N) * I
+    model = models.biocm(params, models.timeseries(data, dt))
+    X = models.integrate(model, x0, dt)
+    return X

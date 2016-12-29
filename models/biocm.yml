@@ -30,32 +30,32 @@ equations:
   kdr_m: (1/(1 + exp(-(V - kdrm_v) / kdrm_dv)) - kdr_m) / kdrm_tau
   ka_m: >
     (pow(1 + exp(-(V - kam_v) / kam_dv), kam_p) - ka_m) /
-    (kam_t0 + 1/(kam_t1 * exp((V - kam_tv) / kam_tdv1) + kam_t2 * exp((-V - kam_tv) / kam_tdv2)))
+    (kam_t0 + 1/(kam_t1 * exp((V - kam_tv) / kam_tdv1) + kam_t2 * exp(-(V - kam_tv) / kam_tdv2)))
   ka_h: >-
     (pow(1 + exp((V - kah_v) / kah_dv), kah_p) - ka_h) /
-    (kah_t0 + 1/(kah_t1 * exp((V - kah_tv) / kah_tdv1) + kah_t2 * exp((-V - kah_tv) / kah_tdv2)))
+    (kah_t0 + 1/(kah_t1 * exp((V - kah_tv) / kah_tdv1) + kah_t2 * exp(-(V - kah_tv) / kah_tdv2)))
   ka_c: >
     (pow(1 + exp((V - kah_v) / kah_dv), kah_p) - ka_c) /
     (kac_t0 + kac_t1/(1 + exp(-(V - kac_tv) / kah_tdv1)))
   klt_m: >
     (pow(1 + exp(-(V - kltm_v) / kltm_dv), kltm_p) - klt_m) /
-    (kltm_t0 + 1/(kltm_t1 * exp((V - kltm_tv) / kltm_tdv1) + kltm_t2 * exp((-V - kltm_tv) / kltm_tdv2)))
+    (kltm_t0 + 1/(kltm_t1 * exp((V - kltm_tv) / kltm_tdv1) + kltm_t2 * exp(-(V - kltm_tv) / kltm_tdv2)))
   klt_h: >
     ((1 - klth_z) / (1 + exp((V - klth_v) / klth_dv)) + klth_z - klt_h) /
-    (klth_t0 + 1/(klth_t1 * exp((V - klth_tv) / klth_tdv1) + klth_t2 * exp((-V - klth_tv) / klth_tdv2)))
+    (klth_t0 + 1/(klth_t1 * exp((V - klth_tv) / klth_tdv1) + klth_t2 * exp(-(V - klth_tv) / klth_tdv2)))
   kht_m: >
     (pow(1 + exp(-(V - khtm_v) / khtm_dv), khtm_p) - kht_m) /
-    (khtm_t0 + 1/(khtm_t1 * exp((V - khtm_tv) / khtm_tdv1) + khtm_t2 * exp((-V - khtm_tv) / khtm_tdv2)))
+    (khtm_t0 + 1/(khtm_t1 * exp((V - khtm_tv) / khtm_tdv1) + khtm_t2 * exp(-(V - khtm_tv) / khtm_tdv2)))
   kht_n: >-
     (1/(1 + exp(-(V - khtn_v) / khtn_dv)) - kht_n) /
-    (khtn_t0 + 1/(khtn_t1 * exp((V - khtn_tv) / khtn_tdv1) + khtn_t2 * exp((-V - khtn_tv) / khtn_tdv2)))
+    (khtn_t0 + 1/(khtn_t1 * exp((V - khtn_tv) / khtn_tdv1) + khtn_t2 * exp(-(V - khtn_tv) / khtn_tdv2)))
   hcn_h: >-
     (1/(1 + exp((V - hcnh_v) / hcnh_dv)) - hcn_h) /
-    (hcnh_t0 + 1/(hcnh_t1 * exp((V - hcnh_tv) / hcnh_tdv1) + hcnh_t2 * exp((-V - hcnh_tv) / hcnh_tdv2)))
+    (hcnh_t0 + 1/(hcnh_t1 * exp((V - hcnh_tv) / hcnh_tdv1) + hcnh_t2 * exp(-(V - hcnh_tv) / hcnh_tdv2)))
 forcing:
   Iinj: 0 pA
 parameters:
-  C: 1 pF
+  C: 12 pF
   E_l: -65 mV
   E_na: 55 mV
   E_k: -70 mV
@@ -78,7 +78,7 @@ parameters:
   kdrm_tau: 2 ms
   kam_v: -31 mV
   kam_dv: 6 mV
-  kam_p: 0.25
+  kam_p: -0.25
   kam_t0: 0.1 ms
   kam_t1: 0.07 1/ms
   kam_tv: -60 mV
@@ -87,7 +87,7 @@ parameters:
   kam_tdv2: 24 mV
   kah_v: -66 mV
   kah_dv: 7 mV
-  kah_p: 0.5
+  kah_p: -0.5
   kah_t0: 1.0 ms
   kah_t1: 0.014 1/ms
   kah_tv: -60 mV
@@ -100,7 +100,7 @@ parameters:
   kac_tdv1: 17 mV
   kltm_v: -48 mV
   kltm_dv: 6 mV
-  kltm_p: 0.25
+  kltm_p: -0.25
   kltm_t0: 1.5 ms
   kltm_t1: 0.06 1/ms
   kltm_tv: -60 mV
@@ -119,7 +119,7 @@ parameters:
   kht_phi: 0.85
   khtm_v: -15 mV
   khtm_dv: 5 mV
-  khtm_p: 0.5
+  khtm_p: -0.5
   khtm_t0: 0.7 ms
   khtm_t1: 0.11 1/ms
   khtm_tv: -60 mV
