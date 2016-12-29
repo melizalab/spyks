@@ -1,7 +1,11 @@
 #ifndef INTEGRATORS_H
 #define INTEGRATORS_H
 
+#include "utility.hpp"
 #include <boost/numeric/odeint.hpp>
+
+
+namespace ode = boost::numeric::odeint;
 
 namespace spyks { namespace integrators {
 
@@ -28,6 +32,32 @@ public:
         }
 };
 
+template<typename Model>
+py::array
+integrate_reset(Model & model, typename Model::state_type x, double tmax, double dt)
+{
+        typedef typename Model::state_type state_type;
+        double t = 0;
+        size_t nsteps = floor(tmax / dt) + 1;
+        auto obs = spyks::pyarray_writer<Model>(nsteps);
+        auto stepper = resetting_euler<state_type>();
+        ode::integrate_const(stepper, model, x, 0.0, tmax, dt, obs);
+        return obs.X;
+}
+
+template<typename Model>
+py::array
+integrate(Model & model, typename Model::state_type x, double tmax, double dt)
+{
+        typedef typename Model::state_type state_type;
+        double t = 0;
+        size_t nsteps = floor(tmax / dt) + 1;
+        auto obs = spyks::pyarray_writer<Model>(nsteps);
+        auto stepper = ode::runge_kutta_dopri5<state_type>();
+        ode::integrate_const(ode::make_dense_output(1.0e-4, 1.0e-4, stepper),
+                             std::ref(model), x, 0.0, tmax, dt, obs);
+        return obs.X;
+}
 
 }}  // namespace spyks::integrators
 

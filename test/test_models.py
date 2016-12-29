@@ -7,7 +7,7 @@ import numpy as nx
 import spyks as s
 import spyks.validate as sv
 
-from spyks.models import adex, nakl
+from spyks.models import adex, nakl, biocm
 
 adex_params = [
     {'params': [250, 30, -70.6, 2.0, -55, 144, 4, -70.6, 80.5, 30, 1],
@@ -105,24 +105,22 @@ def test_nakl_integration(I=50):
     return X
 
 
-# def test_biocm():
-#     pymodel = s.load_model("models/biocm.yml")
-#     params = s.to_array(pymodel['parameters'])
-#     forcing = s.to_array(pymodel['forcing'])
-#     state = s.to_array(pymodel['state']).tolist()
-#     inj = models.timeseries(forcing, 0.05)
-#     model = models.biocm(params, inj)
-#     dXdt = model(state, 0)
-#     pydXdt = s.to_array(s.deriv(pymodel))
-#     assert_true(nx.allclose(dXdt, pydXdt))
+def test_biocm():
+    pymodel = s.load_model("models/biocm.yml")
+    params = s.to_array(pymodel['parameters'])
+    forcing = s.to_array(pymodel['forcing'])
+    state = s.to_array(pymodel['state']).tolist()
+    model = biocm.model(params, forcing, 0.05)
+    dXdt = model(state, 0)
+    pydXdt = s.to_array(sv.deriv(pymodel))
+    assert_true(nx.allclose(dXdt, pydXdt))
 
-# def test_biocm_integration(I=20):
-#     N = 5000
-#     dt = 0.05
-#     pymodel = s.load_model("models/biocm.yml")
-#     params = s.to_array(pymodel['parameters'])
-#     x0 = s.to_array(pymodel['state']).tolist()
-#     data = nx.ones(N) * I
-#     model = models.biocm(params, models.timeseries(data, dt))
-#     X = models.integrate(model, x0, dt)
-#     return X
+def test_biocm_integration(I=20):
+    N = 5000
+    dt = 0.05
+    pymodel = s.load_model("models/biocm.yml")
+    params = s.to_array(pymodel['parameters'])
+    x0 = s.to_array(pymodel['state']).tolist()
+    data = nx.ones(N) * I
+    X = biocm.integrate(params, x0, data, dt, dt)
+    return X
