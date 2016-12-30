@@ -80,7 +80,7 @@ struct biocm {
                             g_ka * ka_m * ka_m * ka_m * ka_m * ka_h  * ka_c * (E_k - V) +
                             g_klt * klt_m * klt_m * klt_m * klt_m * klt_h * (E_k - V) +
                             g_kht * (kht_phi * kht_m * kht_m + (1 - kht_phi) * kht_n) * (E_k - V) +
-                            g_hcn * hcn_h * (E_h + V) +
+                            g_hcn * hcn_h * (E_h - V) +
                             I);
                 dna_m = dna_h = dkdr_m = dka_m = dka_h =
                         dka_c = dklt_m = dklt_h = dkht_m = dkht_n = dhcn_h = 0;

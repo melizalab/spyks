@@ -1,5 +1,6 @@
 ---
 name: biocm
+description: biophysical model of CM excitatory neuron
 author: dmeliza
 version: 1.0
 state:
@@ -23,7 +24,7 @@ equations:
            g_ka * ka_m * ka_m * ka_m * ka_m * ka_h  * ka_c * (E_k - V) +
            g_klt * klt_m * klt_m * klt_m * klt_m * klt_h * (E_k - V) +
            g_kht * (kht_phi * kht_m * kht_m + (1 - kht_phi) * kht_n) * (E_k - V) +
-           g_hcn * hcn_h * (E_h + V) +
+           g_hcn * hcn_h * (E_h - V) +
            Iinj)
   na_m: (1/(1 + exp(-(V - nam_v) / nam_dv)) - na_m) / nam_tau
   na_h: >
