@@ -97,7 +97,7 @@ _models = [Extension("spyks.models.{}".format(os.path.splitext(os.path.basename(
 
 setup(
     name="spyks",
-    version="0.2.0",
+    version="0.3.0",
     packages= find_packages(exclude=["*test*"]),
     cmdclass = {'build_ext': BuildExt},
     ext_modules= _models,
