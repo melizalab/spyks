@@ -58,7 +58,10 @@ def test_adex_integration():
     params = adex_params[0]['params']
     x0 = adex_params[0]['state']
     data = nx.ones(N) * I
+    model = adex.model(params, data, dt)
     X = adex.integrate(params, x0, data, dt, dt)
+    X2 = adex.integrate(model, x0, data.size * dt, dt)
+    assert_true(nx.allclose(X, X2))
     # with these parameters, there should be exactly one spike at 555
     events = (X[:,0] > 29.9).nonzero()[0]
     assert_equal(events.size, 1)
@@ -101,7 +104,10 @@ def test_nakl_integration(I=50):
     params = nakl_params[0]['params']
     x0 = nakl_params[0]['state']
     data = nx.ones(N) * I
+    model = nakl.model(params, data, dt)
     X = nakl.integrate(params, x0, data, dt, dt)
+    X2 = nakl.integrate(model, x0, data.size * dt, dt)
+    assert_true(nx.allclose(X, X2))
     return X
 
 
@@ -122,5 +128,8 @@ def test_biocm_integration(I=20):
     params = s.to_array(pymodel['parameters'])
     x0 = s.to_array(pymodel['state']).tolist()
     data = nx.ones(N) * I
+    model = biocm.model(params, data, dt)
     X = biocm.integrate(params, x0, data, dt, dt)
+    X2 = biocm.integrate(model, x0, data.size * dt, dt)
+    assert_true(nx.allclose(X, X2))
     return X

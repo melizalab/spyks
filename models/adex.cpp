@@ -86,5 +86,6 @@ PYBIND11_PLUGIN(adex) {
           },
           "Integrates adex model from starting state x0 over the duration of the forcing timeseries",
           "params"_a, "x0"_a, "forcing"_a, "forcing_dt"_a, "stepping_dt"_a);
+    m.def("integrate", &spyks::integrators::integrate_reset<dadex>);
     return m.ptr();
 }
