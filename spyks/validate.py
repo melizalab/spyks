@@ -20,12 +20,33 @@ def deriv(model):
     return [(variable, eval(eqn, {}, ctx)) for variable, eqn in model['equations'].items()]
 
 
-def check_reset(model):
-    """ Evaluates the model's reset condition """
-    return eval(model['reset']['predicate'], {}, context(model))
-
-
 def reset(model):
-    """ Returns the model's post-reset state """
+    """ Returns the model's post-reset state, or False if it did not reset """
     ctx = context(model)
-    return [(variable, eval(eqn, {}, ctx)) for variable, eqn in model['reset']['state'].items()]
+    if eval(model['reset']['predicate'], {}, context(model)):
+        return [(variable, eval(eqn, {}, ctx)) for variable, eqn in model['reset']['state'].items()]
+    else:
+        return False
+
+
+def check_equations(model):
+    from .core import ureg
+    dt = 1 * ureg.ms
+    X = model['state']
+    dX = deriv(model)           # will raise error if dimensions are bad
+    for ((n1, v1), (n2, v2)) in zip(X, dX):
+        if n1 != n2: raise ValueError("Name mismatch between state ({}) and derivative ({})".format(n1, n2))
+        try:
+            x = v1 + dt * v2
+        except:
+            raise ValueError("Units mismatch between state ({}) and derivative ({}) for {}".format(v1.units,
+                                                                                                   v2.units,
+                                                                                                   n1))
+
+def check_forcing(model, forcing):
+    if forcing.ndim > 2:
+        raise ValueError("Forcing must be 1-D or 2-D")
+    N = len(model['forcing'])
+    D = forcing.shape[1] if forcing.ndim > 1 else 1
+    if N != D:
+        raise ValueError("Forcing component count ({}) does not match model ({})".format(D, N))
