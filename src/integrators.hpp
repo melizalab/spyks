@@ -38,7 +38,7 @@ integrate_reset(Model & model, typename Model::state_type x, double tmax, double
 {
         typedef typename Model::state_type state_type;
         double t = 0;
-        size_t nsteps = floor(tmax / dt) + 1;
+        size_t nsteps = floor(tmax / dt);
         auto obs = spyks::pyarray_writer<Model>(nsteps);
         auto stepper = resetting_euler<state_type>();
         ode::integrate_const(stepper, model, x, 0.0, tmax, dt, obs);
@@ -51,7 +51,7 @@ integrate(Model & model, typename Model::state_type x, double tmax, double dt)
 {
         typedef typename Model::state_type state_type;
         double t = 0;
-        size_t nsteps = floor(tmax / dt) + 1;
+        size_t nsteps = ceil(tmax / dt);
         auto obs = spyks::pyarray_writer<Model>(nsteps);
         auto stepper = ode::runge_kutta_dopri5<state_type>();
         ode::integrate_const(ode::make_dense_output(1.0e-4, 1.0e-4, stepper),

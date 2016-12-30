@@ -10,13 +10,13 @@ import spyks.validate as sv
 from spyks.models import adex, nakl, biocm
 
 adex_params = [
-    {'params': [250, 30, -70.6, 2.0, -55, 144, 4, -70.6, 80.5, 30, 1],
+    {'params': [250, 30, -70.6, 2.0, -55, 144, 4, -70.6, 80.5, 30],
      'forcing': [0.],
      'state': [-70., 0]},
-    {'params': (200, 32, -65, 2.0, -56, 120, 5, -70.6, 80.5, 30, 1),
+    {'params': (200, 32, -65, 2.0, -56, 120, 5, -70.6, 80.5, 30),
      'forcing': [0.05],
      'state': [-50., 0]},
-    {'params': nx.asarray([200, 32, -65, 2.0, -56, 120, 5, -70.6, 80.5, 30, 1]),
+    {'params': nx.asarray([200, 32, -65, 2.0, -56, 120, 5, -70.6, 80.5, 30]),
      'forcing': [0.05],
      'state': [50., 10]},
 ]
@@ -41,15 +41,16 @@ def test_adex_reset():
         model = adex.model(params, forcing, 0.05)
         reset, new_state = model.reset(state)
         s.update_model(pymodel, state=state, forcing=forcing, parameters=params)
-        pyreset = sv.check_reset(pymodel)
-        assert_equal(reset, pyreset)
+        pypost_state = sv.reset(pymodel)
         if reset:
-            pypost_state = s.to_array(sv.reset(pymodel))
+            pypost_state = s.to_array(pypost_state)
             assert_true(nx.allclose(new_state, pypost_state))
         else:
+            assert_equal(reset, pypost_state)
             assert_true(nx.allclose(state, new_state))
     for tvals in adex_params:
         yield compare_reset, tvals['params'], tvals['forcing'], tvals['state']
+
 
 def test_adex_integration():
     I = 500
@@ -68,20 +69,21 @@ def test_adex_integration():
     assert_equal(events[0], 555)
     return X
 
+
 nakl_params = [
     {'params': [1., 120., 50., 20., -77., 0.3, -54.4,
                 -40., 15., 0.1, 0.4, -40., 15., -60., -15.,
-                1., 7., -60., -15., -55., 30., 1., 5., -55., -30., 1.],
+                1., 7., -60., -15., -55., 30., 1., 5., -55., -30.],
      'forcing': [0.],
      'state': [-70., 0., 0., 0.]},
     {'params': [1., 120., 50., 20., -77., 0.3, -54.4,
                 -40., 15., 0.1, 0.4, -40., 15., -60., -15.,
-                1., 7., -60., -15., -55., 30., 1., 5., -55., -30., 1.],
+                1., 7., -60., -15., -55., 30., 1., 5., -55., -30.],
      'forcing': [100.],
      'state': [-70., 0., 0.2, 0.1]},
     {'params': [1.02, 70.7, 55., .38, -85., 0.054, -65,
                 -40., 15., 0.1, 0.4, -40., 15., -60., -15.,
-                1., 7., -60., -15., -55., 30., 1., 5., -55., -30., .042],
+                1., 7., -60., -15., -55., 30., 1., 5., -55., -30.],
      'forcing': [0.],
      'state': [-65., 0.1, 0.2, 0.1]},
 ]
