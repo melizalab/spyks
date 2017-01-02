@@ -39,7 +39,7 @@ equations:
     (kah_t0 + 1/(kah_t1 * exp((V - kah_tv) / kah_tdv1) + kah_t2 * exp(-(V - kah_tv) / kah_tdv2)))
   ka_c: >
     (pow(1 + exp((V - kah_v) / kah_dv), kah_p) - ka_c) /
-    (kac_t0 + kac_t1/(1 + exp(-(V - kac_tv) / kah_tdv1)))
+    (kac_t0 + kac_t1/(1 + exp(-(V - kac_tv) / kac_tdv1)))
   klt_m: >
     (pow(1 + exp(-(V - kltm_v) / kltm_dv), kltm_p) - klt_m) /
     (kltm_t0 + 1/(kltm_t1 * exp((V - kltm_tv) / kltm_tdv1) + kltm_t2 * exp(-(V - kltm_tv) / kltm_tdv2)))
