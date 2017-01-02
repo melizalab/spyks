@@ -123,6 +123,7 @@ def test_biocm():
     pydXdt = s.to_array(sv.deriv(pymodel))
     assert_true(nx.allclose(dXdt, pydXdt))
 
+
 def test_biocm_integration(I=20):
     N = 5000
     dt = 0.05
