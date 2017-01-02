@@ -180,10 +180,10 @@ PYBIND11_PLUGIN(biocm) {
                       auto dptr = static_cast<value_type const *>(forcing_info.ptr);
                       time_type tmax = forcing_info.shape[0] * forcing_dt;
                       dbiocm model(pptr, dptr, forcing_dt);
-                      return spyks::integrators::integrate(model, x0, tmax, stepping_dt);
+                      return spyks::integrate(model, x0, tmax, stepping_dt);
               },
               "Integrates model from starting state x0 over the duration of the forcing timeseries",
               "params"_a, "x0"_a, "forcing"_a, "forcing_dt"_a, "stepping_dt"_a);
-        m.def("integrate", &spyks::integrators::integrate<dbiocm>);
+        m.def("integrate", &spyks::integrate<dbiocm>);
         return m.ptr();
 }

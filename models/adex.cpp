@@ -82,10 +82,10 @@ PYBIND11_PLUGIN(adex) {
                   auto dptr = static_cast<value_type const *>(forcing_info.ptr);
                   time_type tmax = forcing_info.shape[0] * forcing_dt;
                   dadex model(pptr, dptr, forcing_dt);
-                  return spyks::integrators::integrate_reset(model, x0, tmax, stepping_dt);
+                  return spyks::integrate_reset(model, x0, tmax, stepping_dt);
           },
           "Integrates adex model from starting state x0 over the duration of the forcing timeseries",
           "params"_a, "x0"_a, "forcing"_a, "forcing_dt"_a, "stepping_dt"_a);
-    m.def("integrate", &spyks::integrators::integrate_reset<dadex>);
+    m.def("integrate", &spyks::integrate_reset<dadex>);
     return m.ptr();
 }

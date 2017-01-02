@@ -101,7 +101,7 @@ def test_nakl_dxdt():
 
 
 def test_nakl_integration(I=50):
-    N = 1000
+    N = 10000
     dt = 0.05
     params = nakl_params[0]['params']
     x0 = nakl_params[0]['state']
