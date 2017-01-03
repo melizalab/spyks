@@ -81,6 +81,8 @@ class BuildExt(build_ext):
             opts.append(cpp_flag(self.compiler))
             if has_flag(self.compiler, '-fvisibility=hidden'):
                 opts.append('-fvisibility=hidden')
+            if has_flag(self.compiler, '-ffast-math'):
+                opts.append('-ffast-math')
         elif ct == 'msvc':
             opts.append('/DVERSION_INFO=\\"%s\\"' % self.distribution.get_version())
         for ext in self.extensions:
@@ -97,7 +99,7 @@ _models = [Extension("spyks.models.{}".format(os.path.splitext(os.path.basename(
 
 setup(
     name="spyks",
-    version="0.3.0",
+    version="0.4.0",
     packages= find_packages(exclude=["*test*"]),
     cmdclass = {'build_ext': BuildExt},
     ext_modules= _models,

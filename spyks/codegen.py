@@ -25,9 +25,8 @@ def simplify_equations(model):
     return m
 
 
-def print_subst(sexp):
-    lh, rh = sexp
-    return "const {} {} = {};".format(value_type, sp.ccode(lh), sp.ccode(rh))
+def print_subst(name, expr):
+    return "const {} {} = {};".format(value_type, sp.ccode(name), sp.ccode(expr))
 
 
 def print_dx(i, exp):
@@ -35,16 +34,8 @@ def print_dx(i, exp):
 
 
 def print_forcing(i, s):
-    templ = "const {} {} = interpolate({}, {}, N_FORCING)[{}];"
-    return templ.format(value_type, s, forcing_var, time_var, i)
-
-
-def to_ccode(exprs):
-    """Produces c code from expressions, applying cse"""
-    subs, exprs = sp.cse(exprs)
-    subs_s = "\n".join(map(print_subst, subs))
-    expr_s = "\n".join(print_dx(i, expr) for i, expr in enumerate(exprs))
-    return "{}\n\n{}".format(subs_s, expr_s)
+    templ = "const {} {} = interpolate({}, {}, dt, N_FORCING)[{}];"
+    return templ.format(value_type, s, time_var, forcing_var, i)
 
 
 def symbol_replacements(model):
@@ -56,10 +47,25 @@ def symbol_replacements(model):
     return state_subs
 
 
+def to_ccode(model):
+    """Produces c code from expressions, applying cse"""
+    repl = symbol_replacements(model)
+    subs, exprs = sp.cse(expr for n, expr in model["equations"])
+    subs_s = "\n".join(print_subst(n, expr.subs(repl)) for n, expr in subs)
+    expr_s = "\n".join(print_dx(i, expr.subs(repl)) for i, expr in enumerate(exprs))
+    return "{}\n\n{}".format(subs_s, expr_s)
+
+
+def replace_symbols(model):
+    d = symbol_replacements(model)
+    m = model.copy()
+    m['equations'] = [(n, expr.subs(d)) for n,expr in model["equations"]]
+    return m
+
 def render(model, template):
     import string
     forcing_s = "\n".join(print_forcing(i, s) for i, (s,v) in enumerate(model["forcing"]))
-    code_s = to_ccode(expr for n, expr in model['equations'])
+    code_s = to_ccode(model)
     fp = open(template, "r")
     templ = string.Template(open(template, "r").read())
     context = dict(name=model["name"],
@@ -74,4 +80,4 @@ def render(model, template):
                time_var=time_var,
                forcing=forcing_s,
                code=code_s)
-    return templ, context
+    return templ.substitute(context)
