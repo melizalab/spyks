@@ -29,6 +29,16 @@ def reset(model):
         return False
 
 
+def check_symbols(model):
+    from itertools import chain
+    from .core import symbols
+    lhs, rhs = symbols(model)
+    vars = {n for n,v in chain(model["state"], model["parameters"], model["forcing"])}
+    d = vars.symmetric_difference(str(s) for s in rhs)
+    if len(d) > 0:
+        raise ValueError("unmatched variables in model: {}".format(d))
+
+
 def check_equations(model):
     from .core import ureg
     dt = 1 * ureg.ms
