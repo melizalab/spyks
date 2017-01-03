@@ -36,6 +36,20 @@ def load_model(fname):
     return model
 
 
+def n_params(model):
+    """ Number of parameters in model """
+    return len(model["parameters"])
+
+
+def n_state(model):
+    """ Number of state variables in model """
+    return len(model["equations"])
+
+
+def n_forcing(model):
+    return len(model["forcing"])
+
+
 def to_array(mapping):
     """ Converts named vector of quantities into a dimensionless array. """
     from numpy import fromiter
