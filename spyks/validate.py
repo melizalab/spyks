@@ -60,7 +60,7 @@ def check_equations(model):
         try:
             x = v1 + dt * v2
         except:
-            raise ValueError("Units mismatch between state ({}) and derivative ({}) for {}".format(v1.units,
+            raise ValueError("Units mismatch between ({}) and derivative ({}) for {}".format(v1.units,
                                                                                                    v2.units,
                                                                                                    n1))
 

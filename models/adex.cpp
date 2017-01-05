@@ -40,6 +40,10 @@ struct adex {
                         return true;
                 }
         }
+
+        void clip(state_type & X) const {
+                if (X[0] > params[9]) X[0] = params[9];
+        }
 };
 
 }}
@@ -51,13 +55,11 @@ PYBIND11_PLUGIN(adex) {
         typedef double value_type;
         typedef double time_type;
         typedef adex<value_type, time_type> dadex;
+        typedef py::array_t<value_type, py::array::c_style | py::array::forcecast> pydensearray;
         py::module m("adex", "adaptive exponential model");
         py::class_<dadex >(m, "model")
             .def("__init__",
-                 [](dadex &m,
-                    py::array_t<value_type, py::array::c_style | py::array::forcecast> params,
-                    py::array_t<value_type, py::array::c_style | py::array::forcecast> forcing,
-                    time_type forcing_dt) {
+                 [](dadex &m, pydensearray params, pydensearray forcing, time_type forcing_dt) {
                          auto pptr = static_cast<value_type const *>(params.data());
                          auto dptr = static_cast<value_type const *>(forcing.data());
                          new (&m) dadex(pptr, dptr, forcing_dt);
@@ -72,10 +74,10 @@ PYBIND11_PLUGIN(adex) {
                             return std::make_pair(r, X);
                     });
 
-    m.def("integrate", [](py::array_t<value_type, py::array::c_style | py::array::forcecast> params,
-                          dadex::state_type x0,
-                          py::array_t<value_type, py::array::c_style | py::array::forcecast> forcing,
-                          time_type forcing_dt, time_type stepping_dt) -> py::array {
+        m.def("integrate", [](pydensearray params,
+                              dadex::state_type x0,
+                              pydensearray forcing,
+                              time_type forcing_dt, time_type stepping_dt) -> py::array {
                   auto pptr = static_cast<value_type const *>(params.data());
                   py::buffer_info forcing_info = forcing.request();
                   auto dptr = static_cast<value_type const *>(forcing_info.ptr);
