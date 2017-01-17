@@ -1,5 +1,6 @@
 ---
 name: adex
+description: adaptive exponential integrate and fire model
 author: dmeliza
 version: 1.0
 state:

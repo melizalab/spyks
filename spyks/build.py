@@ -10,6 +10,9 @@ import logging
 from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext
 
+log = logging.getLogger('spyks')   # root logger
+
+
 class get_pybind_include(object):
     """Helper class to determine the pybind11 include path
 
@@ -103,6 +106,9 @@ class BuildExt(build_ext):
             ext.extra_compile_args = opts
         build_ext.build_extensions(self)
 
+
+class CustomDestBuildExt(BuildExt):
+    """A custom build extension for specifying target path"""
     def copy_extensions_to_source(self):
         for ext in self.extensions:
             fullname = self.get_ext_fullname(ext.name)
@@ -116,19 +122,27 @@ class BuildExt(build_ext):
             )
 
 
-def to_cppfile(model, path, simplify=True):
-    """ Renders model to C++ code and writes the file to path"""
+def should_rebuild(modelfile, cppfile):
+    t_model = os.path.getmtime(modelfile)
+    t_cpp   = os.path.getmtime(cppfile)
+    return t_cpp < t_model
+
+
+def write_cppfile(model, fname, simplify=True):
+    """ Renders model to C++ code and writes to fname"""
     from .codegen import render, simplify_equations
     import pkgutil
     template = pkgutil.get_data("spyks.templates", "model.cpp").decode("utf-8")
     # TODO check if the model actually needs to be rendered
     if simplify:
+        log.info("%s: simplifying equations", model["name"])
         model = simplify_equations(model)
+    log.info("%s: generating code", model["name"])
     code = render(model, template)
-    cppfile = os.path.join(path, model["name"] + ".cpp")
-    with open(cppfile, "wt") as fp:
+    with open(fname, "wt") as fp:
         fp.write(code)
-    return cppfile
+    log.info("%s: wrote %s", model["name"], fname)
+
 
 
 def compile_script(argv=None):
@@ -141,10 +155,19 @@ def compile_script(argv=None):
     p.add_argument("target", help="the path to put the module (default same as model file)", nargs='?')
     args = p.parse_args(argv)
 
+    ch = logging.StreamHandler()
+    formatter = logging.Formatter("[%(name)s] %(message)s")
+    loglevel = logging.INFO
+    log.setLevel(loglevel)
+    ch.setLevel(loglevel)  # change
+    ch.setFormatter(formatter)
+    log.addHandler(ch)
+
     model = load_model(args.model)
     path = args.target or os.path.dirname(args.model)
     module_name = model["name"]
-    cppfile = to_cppfile(model, path)
+    cppfile = os.path.join(path, model["name"] + ".cpp")
+    write_cppfile(model, cppfile)
 
     ext = ImportCppExt(
         path,
@@ -159,9 +182,11 @@ def compile_script(argv=None):
     args = ['build_ext', '--inplace', '-q']
     args.append('--build-temp=' + build_path)
     args.append('--build-lib=' + build_path)
+    log.info("%s: compiling extension module", model["name"])
     setup(name = module_name,
           version = model["version"],
           ext_modules = [ext],
           script_args = args,
-          cmdclass = { "build_ext": BuildExt })
+          cmdclass = { "build_ext": CustomDestBuildExt })
     shutil.rmtree(build_path)
+    log.info("%s: complete - extension module in %s", model["name"], path)
