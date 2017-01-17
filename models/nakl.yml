@@ -1,5 +1,6 @@
 ---
 name: nakl
+description: biophysical neuron model with minimal Na, K, leak conductances
 author: dmeliza
 version: 1.0
 state:

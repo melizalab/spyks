@@ -47,10 +47,9 @@ struct pyarray_dense {
         py::array X;
 };
 
+/** A stepper for integrating a resetting neuron model using Euler's method */
 template <typename state_type>
-class resetting_euler {
-public:
-
+struct resetting_euler {
         typedef typename state_type::value_type value_type;
         typedef state_type deriv_type;
         typedef double time_type;
@@ -83,7 +82,7 @@ integrate_reset(Model & model, typename Model::state_type x, double tmax, double
         return obs.X;
 }
 
-        template<typename Model>
+template<typename Model>
 py::array
 integrate_rk4(Model & model, typename Model::state_type x, double tmax, double dt)
 {

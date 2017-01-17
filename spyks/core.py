@@ -92,8 +92,6 @@ def load_model(fname):
     return model
 
 
-
-
 def update_model(model, **kwargs):
     """Updates model with arrays of values.
 

@@ -77,7 +77,7 @@ PYBIND11_PLUGIN(adex) {
         m.def("integrate", [](pydensearray params,
                               dadex::state_type x0,
                               pydensearray forcing,
-                              time_type forcing_dt, time_type stepping_dt) -> py::array {
+                              time_type forcing_dt, time_type stepping_dt)  {
                   auto pptr = static_cast<value_type const *>(params.data());
                   py::buffer_info forcing_info = forcing.request();
                   auto dptr = static_cast<value_type const *>(forcing_info.ptr);
