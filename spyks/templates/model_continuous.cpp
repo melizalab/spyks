@@ -18,51 +18,36 @@ inline constexpr T pow(T x, std::size_t n){
 namespace spyks { namespace models {
 
 template <typename value_type, typename time_type=double>
-struct adex {
-        static const size_t N_PARAM = 10;
-        static const size_t N_STATE = 2;
-        static const size_t N_FORCING = 1;
+struct $name {
+        static const size_t N_PARAM = $n_param;
+        static const size_t N_STATE = $n_state;
+        static const size_t N_FORCING = $n_forcing;
         typedef typename std::array<value_type, N_STATE> state_type;
-        value_type const * p;
-        value_type const * forcing;
+        value_type const * $param_var;
+        value_type const * $forcing_var;
         time_type dt;
 
-        adex (value_type const * p, value_type const * f, time_type forcing_dt)
-             : p(p), forcing(f), dt(forcing_dt) {}
+        $name (value_type const * p, value_type const * f, time_type forcing_dt)
+             : $param_var(p), $forcing_var(f), dt(forcing_dt) {}
 
-        void operator()(state_type const & X,
-                        state_type & dXdt,
-                        time_type t) const {
-                const double Iinj = interpolate(t, forcing, dt, N_FORCING)[0];
-                const double x0 = -X[1];
-const double x1 = X[0] - p[2];
-                dXdt[0] = (Iinj + x0 - x1*p[1] + exp((X[0] - p[4])/p[3])*p[1]*p[3])/p[0];
-dXdt[1] = (x0 + x1*p[6])/p[5];
-        }
-
-        bool reset(state_type & X) const {
-                bool rp = X[0] >= p[9] ;
-                if (rp) {
-                        X[0] = p[7];
-X[1] = X[1] + p[8];
-                }
-                return rp;
-        }
-
-        void clip(state_type & X) const {
-                if (X[0] > p[9]) X[0] = p[9];
+        void operator()(state_type const & $state_var,
+                        state_type & $deriv_var,
+                        time_type $time_var) const {
+                $forcing
+                $substitutions
+                $system
         }
 };
 
 }}
 
-using spyks::models::adex;
+using spyks::models::$name;
 
-PYBIND11_PLUGIN(adex) {
+PYBIND11_PLUGIN($name) {
         typedef double value_type;
         typedef double time_type;
-        typedef adex<value_type, time_type> model;
-        py::module m("adex", "adaptive exponential integrate and fire model");
+        typedef $name<value_type, time_type> model;
+        py::module m("$name", "$descr");
         py::class_<model>(m, "model")
                 .def("__init__",
                      [](model &m,
@@ -77,17 +62,7 @@ PYBIND11_PLUGIN(adex) {
                                 model::state_type out;
                                 m(X, out, t);
                                 return out;
-                        })
-                .def("reset", [](model const & m, model::state_type & X) {
-                                bool r = m.reset(X);
-                                return std::make_pair(r, X);
-                        })
-                .def("clip", [](model const & m, model::state_type & X) {
-                                m.clip(X);
-                                return X;
                         });
-
-
         m.def("integrate", [](py::array_t<value_type, py::array::c_style | py::array::forcecast> params,
                               model::state_type x0,
                               py::array_t<value_type, py::array::c_style | py::array::forcecast> forcing,
@@ -97,10 +72,10 @@ PYBIND11_PLUGIN(adex) {
                       auto dptr = static_cast<value_type const *>(forcing_info.ptr);
                       time_type tmax = forcing_info.shape[0] * forcing_dt;
                       model model(pptr, dptr, forcing_dt);
-                      return spyks::integrate_reset(model, x0, tmax, stepping_dt);
+                      return spyks::integrate(model, x0, tmax, stepping_dt);
               },
               "Integrates model from starting state x0 over the duration of the forcing timeseries",
               "params"_a, "x0"_a, "forcing"_a, "forcing_dt"_a, "stepping_dt"_a);
-        m.def("integrate", &spyks::integrate_reset<model>);
+        m.def("integrate", &spyks::integrate<model>);
         return m.ptr();
 }

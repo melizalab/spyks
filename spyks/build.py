@@ -131,14 +131,11 @@ def should_rebuild(modelfile, cppfile):
 def write_cppfile(model, fname, simplify=True):
     """ Renders model to C++ code and writes to fname"""
     from .codegen import render, simplify_equations
-    import pkgutil
-    template = pkgutil.get_data("spyks.templates", "model.cpp").decode("utf-8")
-    # TODO check if the model actually needs to be rendered
     if simplify:
         log.info("%s: simplifying equations", model["name"])
         model = simplify_equations(model)
     log.info("%s: generating code", model["name"])
-    code = render(model, template)
+    code = render(model)
     with open(fname, "wt") as fp:
         fp.write(code)
     log.info("%s: wrote %s", model["name"], fname)

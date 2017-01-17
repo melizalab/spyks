@@ -82,7 +82,8 @@ def load_model(fname):
     try:
         reset = model["reset"]
         reset["predicate"] = sp.sympify(reset["predicate"])
-        reset["state"] = [(n, sp.sympify(s)) for n,s in reset["state"].items()]
+        reset["state"] = [(sp.Symbol(n), sp.sympify(s)) for n,s in reset["state"].items()]
+        reset["clip"] = [(sp.Symbol(n), sp.sympify(s)) for n,s in reset["clip"].items()]
     except KeyError:
         pass
     # parse quantities and units

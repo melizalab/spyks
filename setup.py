@@ -37,7 +37,7 @@ def make_extension(modelfile):
                     language="c++")
 
 
-_modelfiles = ["models/nakl.yml", "models/biocm.yml"]
+_modelfiles = ["models/adex.yml", "models/nakl.yml", "models/biocm.yml"]
 _models = [make_extension(fname) for fname in _modelfiles]
 
 setup(

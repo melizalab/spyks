@@ -38,34 +38,67 @@ def symbol_replacements(model):
     return state_subs
 
 
-def print_subst(name, expr):
+def fmt_subst(name, expr):
     return "const {} {} = {};".format(value_type, sp.ccode(name), sp.ccode(expr))
 
 
-def print_dx(i, exp):
-    return "{}[{}] = {};".format(deriv_var, i, sp.ccode(exp))
+def fmt_dx(i, expr):
+    return "{}[{}] = {};".format(deriv_var, i, sp.ccode(expr))
 
 
-def print_forcing(i, s):
+def fmt_forcing(i, s):
     templ = "const {} {} = interpolate({}, {}, dt, N_FORCING)[{}];"
     return templ.format(value_type, s, time_var, forcing_var, i)
 
 
-def to_ccode(model):
+def fmt_reset(n, expr):
+    return "{} = {};".format(sp.ccode(n), sp.ccode(expr))
+
+
+def fmt_clip(n, expr):
+    return "if ({0} > {1}) {0} = {1};".format(sp.ccode(n), sp.ccode(expr))
+
+
+def fmt_systemf(model):
     """Produces c code from expressions, applying cse"""
     repl = symbol_replacements(model)
-    subs, exprs = sp.cse(expr for n, expr in model["equations"])
-    subs_s = "\n".join(print_subst(n, expr.subs(repl)) for n, expr in subs)
-    expr_s = "\n".join(print_dx(i, expr.subs(repl)) for i, expr in enumerate(exprs))
-    return "{}\n\n{}".format(subs_s, expr_s)
-
-
-def render(model, template):
-    import string
-    forcing_s = "\n".join(print_forcing(i, s)
+    forcing_s = "\n".join(fmt_forcing(i, s)
                           for i, (s, v) in enumerate(model["forcing"]))
-    code_s = to_ccode(model)
-    templ = string.Template(template)
+    subs, exprs = sp.cse(expr for n, expr in model["equations"])
+    subs_s = "\n".join(fmt_subst(n, expr.subs(repl)) for n, expr in subs)
+    expr_s = "\n".join(fmt_dx(i, expr.subs(repl)) for i, expr in enumerate(exprs))
+    return {
+        "forcing": forcing_s,
+        "substitutions": subs_s,
+        "system": expr_s
+    }
+
+
+def fmt_resetf(model):
+    if "reset" not in model: return {}
+    repl = symbol_replacements(model)
+    out = {
+        "reset_predicate": sp.ccode(model['reset']['predicate'].subs(repl)),
+        "reset_state": "\n".join(fmt_reset(n.subs(repl), expr.subs(repl)) for n, expr in model['reset']['state'])
+    }
+    try:
+        out["clip"] = "\n".join(fmt_clip(n.subs(repl), expr.subs(repl)) for n, expr in model['reset']['clip'])
+    except KeyError:
+        pass
+    return out
+
+
+def get_template(model):
+    import pkgutil
+    if "reset" in model:
+        name = "model_reset.cpp"
+    else:
+        name = "model_continuous.cpp"
+    return pkgutil.get_data("spyks.templates", name).decode("utf-8")
+
+
+def render(model):
+    import string
     context = dict(name=model["name"],
                    descr=model["description"],
                    n_param=n_params(model),
@@ -75,7 +108,9 @@ def render(model, template):
                    forcing_var=forcing_var,
                    state_var=state_var,
                    deriv_var=deriv_var,
-                   time_var=time_var,
-                   forcing=forcing_s,
-                   code=code_s)
+                   time_var=time_var)
+    context.update(fmt_systemf(model))
+    context.update(fmt_resetf(model))
+
+    templ = string.Template(get_template(model))
     return templ.substitute(context)

@@ -34,10 +34,8 @@ struct nakl {
                         state_type & dXdt,
                         time_type t) const {
                 const double Iinj = interpolate(t, forcing, dt, N_FORCING)[0];
-
                 const double x0 = -X[0];
-
-dXdt[0] = (Iinj + (x0 + p[2])*pow(X[1], 3)*X[2]*p[1] + (x0 + p[4])*pow(X[3], 4)*p[3] + (x0 + p[6])*p[5])/p[0];
+                dXdt[0] = (Iinj + (x0 + p[2])*pow(X[1], 3)*X[2]*p[1] + (x0 + p[4])*pow(X[3], 4)*p[3] + (x0 + p[6])*p[5])/p[0];
 dXdt[1] = ((1.0L/2.0L)*tanh((X[0] - p[7])/p[8]) - X[1] + 1.0L/2.0L)/(-(pow(tanh((X[0] - p[11])/p[12]), 2) - 1)*p[10] + p[9]);
 dXdt[2] = ((1.0L/2.0L)*tanh((X[0] - p[13])/p[14]) - X[2] + 1.0L/2.0L)/(-(pow(tanh((X[0] - p[17])/p[18]), 2) - 1)*p[16] + p[15]);
 dXdt[3] = ((1.0L/2.0L)*tanh((X[0] - p[19])/p[20]) - X[3] + 1.0L/2.0L)/(-(pow(tanh((X[0] - p[23])/p[24]), 2) - 1)*p[22] + p[21]);
