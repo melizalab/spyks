@@ -12,6 +12,7 @@ code = render(model, template)
 
 """
 import operator
+import logging
 import sympy as sp
 from spyks.core import n_params, n_state, n_forcing
 
@@ -22,6 +23,7 @@ deriv_var = "dXdt"
 forcing_var = "forcing"
 time_var = "t"
 
+log = logging.getLogger('spyks')   # root logger
 
 def simplify_equations(model):
     m = model.copy()
@@ -64,6 +66,7 @@ def fmt_systemf(model):
     repl = symbol_replacements(model)
     forcing_s = "\n".join(fmt_forcing(i, s)
                           for i, (s, v) in enumerate(model["forcing"]))
+    log.info("%s: eliminating common subexpressions", model["name"])
     subs, exprs = sp.cse(expr for n, expr in model["equations"])
     subs_s = "\n".join(fmt_subst(n, expr.subs(repl)) for n, expr in subs)
     expr_s = "\n".join(fmt_dx(i, expr.subs(repl)) for i, expr in enumerate(exprs))

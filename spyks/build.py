@@ -134,7 +134,6 @@ def write_cppfile(model, fname, simplify=True):
     if simplify:
         log.info("%s: simplifying equations", model["name"])
         model = simplify_equations(model)
-    log.info("%s: generating code", model["name"])
     code = render(model)
     with open(fname, "wt") as fp:
         fp.write(code)
@@ -144,6 +143,7 @@ def write_cppfile(model, fname, simplify=True):
 
 def compile_script(argv=None):
     from .core import load_model
+    import spyks.validate as spkv
     import shutil, tempfile
     import argparse
 
@@ -161,6 +161,9 @@ def compile_script(argv=None):
     log.addHandler(ch)
 
     model = load_model(args.model)
+    log.info("%s: validating model", model["name"])
+    spkv.check_symbols(model)
+    spkv.check_equations(model)
     path = args.target or os.path.dirname(args.model)
     module_name = model["name"]
     cppfile = os.path.join(path, model["name"] + ".cpp")
