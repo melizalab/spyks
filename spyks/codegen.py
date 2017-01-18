@@ -5,10 +5,9 @@
 Example:
 
 model = core.load_model(modelfile)
-template = pkgutil.get_data("spyks.templates", "model.cpp")
 # symbolic simplification is time-intensive but may speed up C++ code
 model = simplify_equations(model)
-code = render(model, template)
+code = render(model)
 
 """
 import operator
@@ -92,12 +91,12 @@ def fmt_resetf(model):
 
 
 def get_template(model):
-    import pkgutil
+    import pkg_resources
     if "reset" in model:
-        name = "model_reset.cpp"
+        name = "templates/model_reset.cpp"
     else:
-        name = "model_continuous.cpp"
-    return pkgutil.get_data("spyks.templates", name).decode("utf-8")
+        name = "templates/model_continuous.cpp"
+    return pkg_resources.resource_string("spyks", name).decode("utf-8")
 
 
 def render(model):
