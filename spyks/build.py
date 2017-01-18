@@ -140,16 +140,55 @@ def write_cppfile(model, fname, simplify=True):
     log.info("%s: wrote %s", model["name"], fname)
 
 
+def build_module(cppfile, name, path, **kwargs):
+    import shutil, tempfile
+    ext = ImportCppExt(
+        path,
+        name,
+        language = "c++",
+        sources = [cppfile],
+        include_dirs = [get_pybind_include(), get_pybind_include(True),
+                        get_boost_include(), get_include()],
+    )
+
+    build_path = tempfile.mkdtemp()
+    args = ['build_ext', '--inplace', '-q']
+    args.append('--build-temp=' + build_path)
+    args.append('--build-lib=' + build_path)
+    log.info("%s: compiling extension module", name)
+    setup(name = name,
+          version = kwargs.get("version", "0.0.1-SNAPSHOT"),
+          ext_modules = [ext],
+          script_args = args,
+          cmdclass = { "build_ext": CustomDestBuildExt })
+    shutil.rmtree(build_path)
+    log.info("%s: complete - extension module in %s", name, path)
+
+
+# def import_model(modelfile):
+#     from .core import load_model
+
+#     model = load_model(modelfile)
+#     log.info("%s: validating model", model["name"])
+#     spkv.check_symbols(model)
+#     spkv.check_equations(model)
+#     path = args.target or os.path.dirname(args.model)
+#     cppfile = os.path.join(path, model["name"] + ".cpp")
+#     write_cppfile(model, cppfile)
+
+#     path = os.path.dirname(modelfile)
+#     cppfile = os.path.join(path, model["name"] +
+
 
 def compile_script(argv=None):
     from .core import load_model
     import spyks.validate as spkv
-    import shutil, tempfile
     import argparse
 
     p = argparse.ArgumentParser(description="compile a spyks model file into a python extension module")
     p.add_argument("model", help="the model descriptor file to compile")
     p.add_argument("target", help="the path to put the module (default same as model file)", nargs='?')
+    p.add_argument("--c-only", "-c", help="generate c++ code without compiling the module", action="store_true")
     args = p.parse_args(argv)
 
     ch = logging.StreamHandler()
@@ -165,28 +204,8 @@ def compile_script(argv=None):
     spkv.check_symbols(model)
     spkv.check_equations(model)
     path = args.target or os.path.dirname(args.model)
-    module_name = model["name"]
     cppfile = os.path.join(path, model["name"] + ".cpp")
     write_cppfile(model, cppfile)
 
-    ext = ImportCppExt(
-        path,
-        module_name,
-        language = "c++",
-        sources = [cppfile],
-        include_dirs = [get_pybind_include(), get_pybind_include(True),
-                        get_boost_include(), get_include()],
-    )
-
-    build_path = tempfile.mkdtemp()
-    args = ['build_ext', '--inplace', '-q']
-    args.append('--build-temp=' + build_path)
-    args.append('--build-lib=' + build_path)
-    log.info("%s: compiling extension module", model["name"])
-    setup(name = module_name,
-          version = model["version"],
-          ext_modules = [ext],
-          script_args = args,
-          cmdclass = { "build_ext": CustomDestBuildExt })
-    shutil.rmtree(build_path)
-    log.info("%s: complete - extension module in %s", model["name"], path)
+    if args.c_only: return
+    build_module(cppfile, model["name"], path, version=model["version"])
