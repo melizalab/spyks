@@ -13,6 +13,7 @@ dimensionless. An array, on the other hand, does not have names or quantities.
 
 """
 
+import os
 import sympy as sp
 import pint as pq
 
@@ -69,17 +70,8 @@ def parse_quantity(x):
     else:
         return ureg.parse_expression(x)
 
-def prune_symbols(model):
-    """Removes state variables and parameters not used in the equations or reset functions"""
-    pass
 
-
-def load_model(fname):
-    """ Loads a model descriptor file. """
-    import ruamel.yaml as yaml
-    fp = open(fname, "r")
-    model = yaml.load(fp, yaml.RoundTripLoader)  # preserves order
-    # parse equations
+def parse(model):
     model['equations'] = [(n, sp.sympify(s)) for n,s in model['equations'].items()]
     try:
         reset = model["reset"]
@@ -93,6 +85,32 @@ def load_model(fname):
         if k in model:
             model[k] = [(param, parse_quantity(value)) for param, value in model[k].items()]
     return model
+
+
+def mapping_updater(new):
+    """Returns an f that updates mapping elements with values in new, converting units as needed"""
+    def f(kv):
+        n, v = kv
+        if n in new:
+            return (n, parse_quantity(new[n]).to(v.units))
+        else:
+            return (n, v)
+    return f
+
+
+def load_model(fname):
+    """ Loads a model descriptor file. """
+    import ruamel.yaml as yaml
+    fp = open(fname, "r")
+    model = yaml.load(fp, yaml.RoundTripLoader)  # preserves order
+    if "base" in model:
+        basefile = os.path.join(os.path.dirname(fname), model["base"] + ".yml")
+        base = load_model(basefile)              # will get parsed
+        base['parameters'] = list(
+            map(mapping_updater(dict(model['parameters'])), base['parameters']))
+        return base
+    else:
+        return parse(model)
 
 
 def update_model(model, **kwargs):
