@@ -24,7 +24,7 @@ parameters:
   el: -70.6 mV
   delt: 2.0 mV
   vt: -55 mV
-  tw: 144 pF
+  tw: 144 ms
   a: 4 nS
   vr: -70.6 mV
   b: 80.5 pA

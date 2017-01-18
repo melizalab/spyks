@@ -41,8 +41,10 @@ def symbols(model):
         rh.update(eq.free_symbols)
     try:
         reset = model["reset"]
-        rh.update(reset["predicate"])
+        rh.update(reset["predicate"].free_symbols)
         for n, eq in reset["state"]:
+            rh.update(eq.free_symbols)
+        for n, eq in reset.get("clip", []):
             rh.update(eq.free_symbols)
     except KeyError:
         pass

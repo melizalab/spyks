@@ -90,19 +90,22 @@ def fmt_resetf(model):
     return out
 
 
-def get_template(model):
+def get_resource(name):
+    import posixpath as pp
     import pkg_resources
-    if "reset" in model:
-        name = "templates/model_reset.cpp"
-    else:
-        name = "templates/model_continuous.cpp"
-    return pkg_resources.resource_string("spyks", name).decode("utf-8")
+    return pkg_resources.resource_string("spyks", pp.join("templates", name)).decode("utf-8")
 
 
 def render(model):
     import string
+    if "reset" in model:
+        template = "model_reset.cpp"
+    else:
+        template = "model_continuous.cpp"
+
     context = dict(name=model["name"],
                    descr=model["description"],
+                   head=get_resource("head.cpp"),
                    n_param=n_params(model),
                    n_state=n_state(model),
                    n_forcing=n_forcing(model),
@@ -114,5 +117,5 @@ def render(model):
     context.update(fmt_systemf(model))
     context.update(fmt_resetf(model))
 
-    templ = string.Template(get_template(model))
+    templ = string.Template(get_resource(template))
     return templ.substitute(context)

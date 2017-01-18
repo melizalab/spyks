@@ -5,17 +5,57 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
-#include "spyks/integrators.h"
+#include <boost/numeric/odeint.hpp>
 
 namespace py = pybind11;
 using namespace pybind11::literals;
+namespace ode = boost::numeric::odeint;
 
 template <class T>
 inline constexpr T pow(T x, std::size_t n){
     return n>0 ? x * pow(x, n - 1):1;
 }
 
-namespace spyks { namespace models {
+namespace spyks {
+
+template<typename T> inline
+T const * interpolate(double t, T const * data, double dt, size_t NC)
+{
+        size_t index = std::round(t / dt);
+        return data + index * NC;
+}
+
+
+/** This observer does nothing. It's mostly here for benchmarking */
+template <typename Model>
+struct noop_observer {
+        typedef typename Model::state_type state_type;
+        py::array X;
+        void operator()(state_type const & x, double time) {}
+};
+
+template <typename Model>
+struct pyarray_dense {
+        typedef typename Model::state_type state_type;
+        pyarray_dense(size_t nsteps)
+                : nsteps(nsteps), step(0),
+                  X(py::dtype::of<double>(), {nsteps, Model::N_STATE}) {}
+        void operator()(state_type const & x, double time) {
+                if (step < nsteps) {
+                        double * dptr = static_cast<double *>(X.mutable_data(step));
+                        std::copy_n(x.begin(), Model::N_STATE, dptr);
+                }
+                ++step;
+        }
+        const size_t nsteps;
+        size_t step;
+        py::array X;
+};
+
+}
+
+
+namespace spyks {
 
 template <typename value_type, typename time_type=double>
 struct nakl {
@@ -42,9 +82,24 @@ dXdt[3] = ((1.0L/2.0L)*tanh((X[0] - p[19])/p[20]) - X[3] + 1.0L/2.0L)/(-(pow(tan
         }
 };
 
-}}
+template<typename Model>
+py::array
+integrate(Model & model, typename Model::state_type x, double tmax, double dt)
+{
+        typedef typename Model::state_type state_type;
+        size_t nsteps = ceil(tmax / dt);
+        auto obs = pyarray_dense<Model>(nsteps);
+        auto stepper = ode::runge_kutta_dopri5<state_type>();
+        ode::integrate_const(ode::make_dense_output(1.0e-4, 1.0e-4, stepper),
+                             std::ref(model), x, 0.0, tmax, dt, obs);
+        return obs.X;
+}
 
-using spyks::models::nakl;
+}
+
+
+
+using spyks::nakl;
 
 PYBIND11_PLUGIN(nakl) {
         typedef double value_type;

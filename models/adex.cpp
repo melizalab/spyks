@@ -5,17 +5,57 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
-#include "spyks/integrators.h"
+#include <boost/numeric/odeint.hpp>
 
 namespace py = pybind11;
 using namespace pybind11::literals;
+namespace ode = boost::numeric::odeint;
 
 template <class T>
 inline constexpr T pow(T x, std::size_t n){
     return n>0 ? x * pow(x, n - 1):1;
 }
 
-namespace spyks { namespace models {
+namespace spyks {
+
+template<typename T> inline
+T const * interpolate(double t, T const * data, double dt, size_t NC)
+{
+        size_t index = std::round(t / dt);
+        return data + index * NC;
+}
+
+
+/** This observer does nothing. It's mostly here for benchmarking */
+template <typename Model>
+struct noop_observer {
+        typedef typename Model::state_type state_type;
+        py::array X;
+        void operator()(state_type const & x, double time) {}
+};
+
+template <typename Model>
+struct pyarray_dense {
+        typedef typename Model::state_type state_type;
+        pyarray_dense(size_t nsteps)
+                : nsteps(nsteps), step(0),
+                  X(py::dtype::of<double>(), {nsteps, Model::N_STATE}) {}
+        void operator()(state_type const & x, double time) {
+                if (step < nsteps) {
+                        double * dptr = static_cast<double *>(X.mutable_data(step));
+                        std::copy_n(x.begin(), Model::N_STATE, dptr);
+                }
+                ++step;
+        }
+        const size_t nsteps;
+        size_t step;
+        py::array X;
+};
+
+}
+
+
+namespace spyks {
 
 template <typename value_type, typename time_type=double>
 struct adex {
@@ -54,9 +94,44 @@ X[1] = X[1] + p[8];
         }
 };
 
-}}
+/** A stepper for integrating a resetting neuron model using Euler's method */
+template <typename state_type>
+struct resetting_euler {
+        typedef typename state_type::value_type value_type;
+        typedef state_type deriv_type;
+        typedef double time_type;
+        typedef unsigned short order_type;
+        typedef boost::numeric::odeint::stepper_tag stepper_category;
 
-using spyks::models::adex;
+        static order_type order( void ) { return 1; }
+
+        template <typename System>
+        void do_step(System system, state_type & x, time_type t, time_type dt) {
+                if (!system.reset(x)) {
+                        deriv_type dxdt;
+                        system(x, dxdt, t);
+                        for (size_t i = 0; i < x.size(); ++i)
+                                x[i] += dt * dxdt[i];
+                        system.clip(x);
+                }
+        }
+};
+
+template<typename Model>
+py::array
+integrate(Model & model, typename Model::state_type x, double tmax, double dt)
+{
+        typedef typename Model::state_type state_type;
+        size_t nsteps = floor(tmax / dt);
+        auto obs = pyarray_dense<Model>(nsteps);
+        auto stepper = resetting_euler<state_type>();
+        ode::integrate_const(stepper, model, x, 0.0, tmax, dt, obs);
+        return obs.X;
+}
+
+}
+
+using spyks::adex;
 
 PYBIND11_PLUGIN(adex) {
         typedef double value_type;
@@ -97,10 +172,10 @@ PYBIND11_PLUGIN(adex) {
                       auto dptr = static_cast<value_type const *>(forcing_info.ptr);
                       time_type tmax = forcing_info.shape[0] * forcing_dt;
                       model model(pptr, dptr, forcing_dt);
-                      return spyks::integrate_reset(model, x0, tmax, stepping_dt);
+                      return spyks::integrate(model, x0, tmax, stepping_dt);
               },
               "Integrates model from starting state x0 over the duration of the forcing timeseries",
               "params"_a, "x0"_a, "forcing"_a, "forcing_dt"_a, "stepping_dt"_a);
-        m.def("integrate", &spyks::integrate_reset<model>);
+        m.def("integrate", &spyks::integrate<model>);
         return m.ptr();
 }

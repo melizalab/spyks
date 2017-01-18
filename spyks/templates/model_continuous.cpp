@@ -1,21 +1,6 @@
-// -*- coding: utf-8 -*-
-// -*- mode: c++ -*-
-#include <array>
-#include <cmath>
-#include <pybind11/pybind11.h>
-#include <pybind11/numpy.h>
-#include <pybind11/stl.h>
-#include "spyks/integrators.h"
+$head
 
-namespace py = pybind11;
-using namespace pybind11::literals;
-
-template <class T>
-inline constexpr T pow(T x, std::size_t n){
-    return n>0 ? x * pow(x, n - 1):1;
-}
-
-namespace spyks { namespace models {
+namespace spyks {
 
 template <typename value_type, typename time_type=double>
 struct $name {
@@ -39,9 +24,24 @@ struct $name {
         }
 };
 
-}}
+template<typename Model>
+py::array
+integrate(Model & model, typename Model::state_type x, double tmax, double dt)
+{
+        typedef typename Model::state_type state_type;
+        size_t nsteps = ceil(tmax / dt);
+        auto obs = pyarray_dense<Model>(nsteps);
+        auto stepper = ode::runge_kutta_dopri5<state_type>();
+        ode::integrate_const(ode::make_dense_output(1.0e-4, 1.0e-4, stepper),
+                             std::ref(model), x, 0.0, tmax, dt, obs);
+        return obs.X;
+}
 
-using spyks::models::$name;
+}
+
+
+
+using spyks::$name;
 
 PYBIND11_PLUGIN($name) {
         typedef double value_type;

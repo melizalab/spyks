@@ -2,3 +2,5 @@
 *.o
 *.so
 spyks.egg-info/
+build/
+dist/
