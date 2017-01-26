@@ -188,7 +188,8 @@ def compile_script(argv=None):
     p = argparse.ArgumentParser(description="compile a spyks model file into a python extension module")
     p.add_argument("model", help="the model descriptor file to compile")
     p.add_argument("target", help="the path to put the module (default same as model file)", nargs='?')
-    p.add_argument("--c-only", "-c", help="generate c++ code without compiling the module", action="store_true")
+    p.add_argument("--skip-compile", help="skip compilation step", action="store_true")
+    p.add_argument("--skip-codegen", help="skip code generation step", action="store_true")
     args = p.parse_args(argv)
 
     ch = logging.StreamHandler()
@@ -205,7 +206,8 @@ def compile_script(argv=None):
     spkv.check_equations(model)
     path = args.target or os.path.dirname(args.model)
     cppfile = os.path.join(path, model["name"] + ".cpp")
-    write_cppfile(model, cppfile)
+    if not args.skip_codegen:
+        write_cppfile(model, cppfile)
 
-    if args.c_only: return
-    build_module(cppfile, model["name"], path, version=model["version"])
+    if not args.skip_compile:
+        build_module(cppfile, model["name"], path, version=model["version"])
