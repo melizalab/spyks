@@ -7,7 +7,7 @@ import numpy as nx
 import spyks as s
 import spyks.validate as sv
 
-from spyks.models import adex, nakl, biocm
+from models import adex, nakl, biocm
 
 adex_params = [
     {'params': [250, 30, -70.6, 2.0, -55, 144, 4, -70.6, 80.5, 30],

@@ -18,20 +18,28 @@ inline constexpr T pow(T x, std::size_t n){
 
 namespace spyks {
 
-template<typename T> inline
-T const * interpolate(double t, T const * data, double dt, size_t NC)
-{
-        size_t index = std::round(t / dt);
-        return data + index * NC;
-}
+template <typename value_t, typename time_t>
+struct nn_interpolator {
+        typedef value_t value_type;
+        typedef time_t time_type;
+        typedef typename py::array_t<value_type> array_type;
 
+        nn_interpolator(array_type data, time_type dt)
+                : data(data), dt(dt), N(data.shape(0)) {}
 
-/** This observer does nothing. It's mostly here for benchmarking */
-template <typename Model>
-struct noop_observer {
-        typedef typename Model::state_type state_type;
-        py::array X;
-        void operator()(state_type const & x, double time) {}
+        template<typename... Ix> value_type operator()(time_type t, Ix... idx) const {
+                // TODO avoid numpy bounds check
+                return data.at(index_at(t), idx...);
+        }
+        size_t index_at(time_type t) const {
+                if (t < 0) return 0;
+                size_t i = std::round(t / dt);
+                return std::min(i, N - 1);
+        }
+
+        array_type data;
+        time_type dt;
+        size_t N;
 };
 
 template <typename Model>

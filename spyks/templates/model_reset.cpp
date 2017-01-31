@@ -2,18 +2,18 @@ $head
 
 namespace spyks {
 
-template <typename value_type, typename time_type=double>
+template <typename value_type, typename interpolator_type>
 struct $name {
         static const size_t N_PARAM = $n_param;
         static const size_t N_STATE = $n_state;
         static const size_t N_FORCING = $n_forcing;
         typedef typename std::array<value_type, N_STATE> state_type;
+        typedef typename interpolator_type::time_type time_type;
         value_type const * $param_var;
-        value_type const * $forcing_var;
-        time_type dt;
+        interpolator_type $forcing_var;
 
-        $name (value_type const * p, value_type const * f, time_type forcing_dt)
-             : $param_var(p), $forcing_var(f), dt(forcing_dt) {}
+        $name (value_type const * p, interpolator_type f)
+             : $param_var(p), $forcing_var(f) {}
 
         void operator()(state_type const & $state_var,
                         state_type & $deriv_var,
@@ -73,12 +73,11 @@ integrate(Model & model, typename Model::state_type x, double tmax, double dt)
 
 }
 
-using spyks::$name;
-
 PYBIND11_PLUGIN($name) {
         typedef double value_type;
         typedef double time_type;
-        typedef $name<value_type, time_type> model;
+        typedef spyks::nn_interpolator<value_type, time_type> interpolator;
+        typedef spyks::$name<value_type, interpolator> model;
         py::module m("$name", "$descr");
         py::class_<model>(m, "model")
                 .def("__init__",
@@ -87,8 +86,8 @@ PYBIND11_PLUGIN($name) {
                         py::array_t<value_type, py::array::c_style | py::array::forcecast> forcing,
                         time_type forcing_dt) {
                              auto pptr = static_cast<value_type const *>(params.data());
-                             auto dptr = static_cast<value_type const *>(forcing.data());
-                             new (&m) model(pptr, dptr, forcing_dt);
+                             auto _forcing = interpolator(forcing, forcing_dt);
+                             new (&m) model(pptr, _forcing);
                      })
                 .def("__call__", [](model const & m, model::state_type const & X, time_type t) {
                                 model::state_type out;
@@ -110,10 +109,9 @@ PYBIND11_PLUGIN($name) {
                               py::array_t<value_type, py::array::c_style | py::array::forcecast> forcing,
                               time_type forcing_dt, time_type stepping_dt) -> py::array {
                       auto pptr = static_cast<value_type const *>(params.data());
-                      py::buffer_info forcing_info = forcing.request();
-                      auto dptr = static_cast<value_type const *>(forcing_info.ptr);
-                      time_type tmax = forcing_info.shape[0] * forcing_dt;
-                      model model(pptr, dptr, forcing_dt);
+                      time_type tmax = forcing.shape(0) * forcing_dt;
+                      auto _forcing = interpolator(forcing, forcing_dt);
+                      model model(pptr, _forcing);
                       return spyks::integrate(model, x0, tmax, stepping_dt);
               },
               "Integrates model from starting state x0 over the duration of the forcing timeseries",

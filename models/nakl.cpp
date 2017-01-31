@@ -18,20 +18,28 @@ inline constexpr T pow(T x, std::size_t n){
 
 namespace spyks {
 
-template<typename T> inline
-T const * interpolate(double t, T const * data, double dt, size_t NC)
-{
-        size_t index = std::round(t / dt);
-        return data + index * NC;
-}
+template <typename value_t, typename time_t>
+struct nn_interpolator {
+        typedef value_t value_type;
+        typedef time_t time_type;
+        typedef typename py::array_t<value_type> array_type;
 
+        nn_interpolator(array_type data, time_type dt)
+                : data(data), dt(dt), N(data.shape(0)) {}
 
-/** This observer does nothing. It's mostly here for benchmarking */
-template <typename Model>
-struct noop_observer {
-        typedef typename Model::state_type state_type;
-        py::array X;
-        void operator()(state_type const & x, double time) {}
+        template<typename... Ix> value_type operator()(time_type t, Ix... idx) const {
+                // TODO avoid numpy bounds check
+                return data.at(index_at(t), idx...);
+        }
+        size_t index_at(time_type t) const {
+                if (t < 0) return 0;
+                size_t i = std::round(t / dt);
+                return std::min(i, N - 1);
+        }
+
+        array_type data;
+        time_type dt;
+        size_t N;
 };
 
 template <typename Model>
@@ -57,23 +65,23 @@ struct pyarray_dense {
 
 namespace spyks {
 
-template <typename value_type, typename time_type=double>
+template <typename value_type, typename interpolator_type>
 struct nakl {
         static const size_t N_PARAM = 25;
         static const size_t N_STATE = 4;
         static const size_t N_FORCING = 1;
         typedef typename std::array<value_type, N_STATE> state_type;
+        typedef typename interpolator_type::time_type time_type;
         value_type const * p;
-        value_type const * forcing;
-        time_type dt;
+        interpolator_type forcing;
 
-        nakl (value_type const * p, value_type const * f, time_type forcing_dt)
-             : p(p), forcing(f), dt(forcing_dt) {}
+        nakl (value_type const * p, interpolator_type f)
+             : p(p), forcing(f) {}
 
         void operator()(state_type const & X,
                         state_type & dXdt,
                         time_type t) const {
-                const double Iinj = interpolate(t, forcing, dt, N_FORCING)[0];
+                const double Iinj = forcing(t);
                 const double x0 = -X[0];
                 dXdt[0] = (Iinj + (x0 + p[2])*pow(X[1], 3)*X[2]*p[1] + (x0 + p[4])*pow(X[3], 4)*p[3] + (x0 + p[6])*p[5])/p[0];
 dXdt[1] = ((1.0L/2.0L)*tanh((X[0] - p[7])/p[8]) - X[1] + 1.0L/2.0L)/(-(pow(tanh((X[0] - p[11])/p[12]), 2) - 1)*p[10] + p[9]);
@@ -98,13 +106,11 @@ integrate(Model & model, typename Model::state_type x, double tmax, double dt)
 }
 
 
-
-using spyks::nakl;
-
 PYBIND11_PLUGIN(nakl) {
         typedef double value_type;
         typedef double time_type;
-        typedef nakl<value_type, time_type> model;
+        typedef spyks::nn_interpolator<value_type, time_type> interpolator;
+        typedef spyks::nakl<value_type, interpolator> model;
         py::module m("nakl", "biophysical neuron model with minimal Na, K, leak conductances");
         py::class_<model>(m, "model")
                 .def("__init__",
@@ -113,8 +119,8 @@ PYBIND11_PLUGIN(nakl) {
                         py::array_t<value_type, py::array::c_style | py::array::forcecast> forcing,
                         time_type forcing_dt) {
                              auto pptr = static_cast<value_type const *>(params.data());
-                             auto dptr = static_cast<value_type const *>(forcing.data());
-                             new (&m) model(pptr, dptr, forcing_dt);
+                             auto _forcing = interpolator(forcing, forcing_dt);
+                             new (&m) model(pptr, _forcing);
                      })
                 .def("__call__", [](model const & m, model::state_type const & X, time_type t) {
                                 model::state_type out;
@@ -126,10 +132,9 @@ PYBIND11_PLUGIN(nakl) {
                               py::array_t<value_type, py::array::c_style | py::array::forcecast> forcing,
                               time_type forcing_dt, time_type stepping_dt) -> py::array {
                       auto pptr = static_cast<value_type const *>(params.data());
-                      py::buffer_info forcing_info = forcing.request();
-                      auto dptr = static_cast<value_type const *>(forcing_info.ptr);
-                      time_type tmax = forcing_info.shape[0] * forcing_dt;
-                      model model(pptr, dptr, forcing_dt);
+                      time_type tmax = forcing.shape(0) * forcing_dt;
+                      auto _forcing = interpolator(forcing, forcing_dt);
+                      model model(pptr, _forcing);
                       return spyks::integrate(model, x0, tmax, stepping_dt);
               },
               "Integrates model from starting state x0 over the duration of the forcing timeseries",
