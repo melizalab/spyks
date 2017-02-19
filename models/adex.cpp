@@ -65,11 +65,12 @@ struct pyarray_dense {
 
 namespace spyks {
 
-template <typename value_type, typename interpolator_type>
+template <typename T, typename interpolator_type>
 struct adex {
         static const size_t N_PARAM = 10;
         static const size_t N_STATE = 2;
         static const size_t N_FORCING = 1;
+        typedef T value_type;
         typedef typename std::array<value_type, N_STATE> state_type;
         typedef typename interpolator_type::time_type time_type;
         value_type const * p;
@@ -127,9 +128,11 @@ struct resetting_euler {
 
 template<typename Model>
 py::array
-integrate(Model & model, typename Model::state_type x, double tmax, double dt)
+integrate(Model & model, py::array_t<typename Model::value_type> x0, double tmax, double dt)
 {
         typedef typename Model::state_type state_type;
+        state_type x;
+        std::copy_n(x0.data(), Model::N_STATE, x.begin());
         size_t nsteps = floor(tmax / dt);
         auto obs = pyarray_dense<Model>(nsteps);
         auto stepper = resetting_euler<state_type>();
@@ -171,7 +174,7 @@ PYBIND11_PLUGIN(adex) {
 
 
         m.def("integrate", [](py::array_t<value_type, py::array::c_style | py::array::forcecast> params,
-                              model::state_type x0,
+                              py::array_t<value_type, py::array::c_style | py::array::forcecast> x0,
                               py::array_t<value_type, py::array::c_style | py::array::forcecast> forcing,
                               time_type forcing_dt, time_type stepping_dt) -> py::array {
                       auto pptr = static_cast<value_type const *>(params.data());

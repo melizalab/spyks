@@ -1,0 +1,15 @@
+---
+name: passive
+description: biophysical neuron model with leak only
+author: dmeliza
+version: 1.0
+state:
+  V: -70 mV
+forcing:
+  Iinj: 0 pA
+equations:
+  V: 1/C * ((gl*(El-V)) + Iinj)
+parameters:
+  C: 57 pF
+  gl: 5.5 nS
+  El: -70 mV

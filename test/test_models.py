@@ -117,9 +117,9 @@ def test_biocm():
     pymodel = s.load_model("models/biocm.yml")
     params = s.to_array(pymodel['parameters'])
     forcing = s.to_array(pymodel['forcing'])
-    state = s.to_array(pymodel['state']).tolist()
+    state = s.to_array(pymodel['state'])
     model = biocm.model(params, forcing, 0.05)
-    dXdt = model(state, 0)
+    dXdt = model(state.tolist(), 0)
     pydXdt = s.to_array(sv.deriv(pymodel))
     assert_true(nx.allclose(dXdt, pydXdt))
 
@@ -129,7 +129,7 @@ def test_biocm_integration(I=20):
     dt = 0.05
     pymodel = s.load_model("models/biocm.yml")
     params = s.to_array(pymodel['parameters'])
-    x0 = s.to_array(pymodel['state']).tolist()
+    x0 = s.to_array(pymodel['state'])
     data = nx.ones(N) * I
     model = biocm.model(params, data, dt)
     X = biocm.integrate(params, x0, data, dt, dt)
