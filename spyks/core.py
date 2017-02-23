@@ -108,6 +108,8 @@ def load_model(fname):
         base = load_model(basefile)              # will get parsed
         base['parameters'] = list(
             map(mapping_updater(dict(model['parameters'])), base['parameters']))
+        base['state'] = list(
+            map(mapping_updater(dict(model['state'])), base['state']))
         return base
     else:
         return parse(model)

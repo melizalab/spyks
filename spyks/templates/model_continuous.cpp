@@ -34,6 +34,8 @@ integrate(Model & model, py::array_t<typename Model::value_type> x0, double tmax
         std::copy_n(x0.data(), Model::N_STATE, x.begin());
         size_t nsteps = ceil(tmax / dt);
         auto obs = pyarray_dense<Model>(nsteps);
+        // auto stepper = ode::runge_kutta4<state_type>();
+        // ode::integrate_const(stepper, std::ref(model), x, 0.0, tmax, dt, obs);
         auto stepper = ode::runge_kutta_dopri5<state_type>();
         ode::integrate_const(ode::make_dense_output(1.0e-5, 1.0e-5, stepper),
                              std::ref(model), x, 0.0, tmax, dt, obs);
