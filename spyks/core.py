@@ -106,10 +106,12 @@ def load_model(fname):
     if "base" in model:
         basefile = os.path.join(os.path.dirname(fname), model["base"] + ".yml")
         base = load_model(basefile)              # will get parsed
-        base['parameters'] = list(
-            map(mapping_updater(dict(model['parameters'])), base['parameters']))
-        base['state'] = list(
-            map(mapping_updater(dict(model['state'])), base['state']))
+        if 'parameters' in model:
+            base['parameters'] = list(
+                map(mapping_updater(dict(model['parameters'])), base['parameters']))
+        if 'state' in model:
+            base['state'] = list(
+                map(mapping_updater(dict(model['state'])), base['state']))
         return base
     else:
         return parse(model)
