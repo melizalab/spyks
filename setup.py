@@ -12,7 +12,7 @@ from setuptools import setup
 
 setup(
     name="spyks",
-    version="0.5.3",
+    version="0.6.0",
     packages=['spyks'],
     package_data={'spyks': ["templates/*.cpp"]},
 
