@@ -10,7 +10,6 @@ model = simplify_equations(model)
 code = render(model)
 
 """
-import operator
 import logging
 import sympy as sp
 from spyks.core import n_params, n_state, n_forcing
@@ -24,19 +23,29 @@ time_var = "t"
 
 log = logging.getLogger('spyks')   # root logger
 
+
 def simplify_equations(model):
     m = model.copy()
     m['equations'] = [(n, expr.simplify()) for n, expr in model['equations']]
     return m
 
 
-def symbol_replacements(model):
+def param_replacements(model):
+    """Generate a dictionary to replace named parameters with indexed elements of P"""
     P = sp.IndexedBase(param_var, shape=(n_params(model),))
+    return {n: P[i] for i, (n, v) in enumerate(model["parameters"])}
+
+
+def state_replacements(model):
+    """Generate a dictionary to replace named variables with indexed elements of X"""
     X = sp.IndexedBase(state_var, shape=(n_state(model),))
-    state_subs = {n: X[i] for i, (n, v) in enumerate(model["state"])}
-    param_subs = {n: P[i] for i, (n, v) in enumerate(model["parameters"])}
-    state_subs.update(param_subs)
-    return state_subs
+    return {n: X[i] for i, (n, v) in enumerate(model["state"])}
+
+
+def symbol_replacements(model):
+    subs = state_replacements(model)
+    subs.update(param_replacements(model))
+    return subs
 
 
 def fmt_subst(name, expr):

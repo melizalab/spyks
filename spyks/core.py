@@ -20,6 +20,7 @@ import pint as pq
 # need a global unit registry in order for quantities to be compatible
 ureg = pq.UnitRegistry()
 
+
 def n_params(model):
     """ Number of parameters in model """
     return len(model["parameters"])
@@ -31,7 +32,23 @@ def n_state(model):
 
 
 def n_forcing(model):
+    """ Number of forcing terms in model """
     return len(model["forcing"])
+
+
+def param_names(model):
+    """ Names of parameters in model """
+    return tuple(n for n, v in model["parameters"])
+
+
+def state_names(model):
+    """ Names of state variables in model """
+    return tuple(n for n, v in model["state"])
+
+
+def forcing_names(model):
+    """ Names of forcing terms in model """
+    return tuple(n for n, v in model["forcing"])
 
 
 def symbols(model):
@@ -126,3 +143,30 @@ def update_model(model, **kwargs):
     """
     for key, array in kwargs.items():
         model[key] = to_mapping(array, model[key])
+
+
+def currents(model):
+    """Extract intrinsic current terms from the model
+
+    This function assumes that the model is biophysical: the model's first
+    equation is for voltage, specified by current conservation.
+
+    """
+    dV = model["equations"][0][1]
+    I_net = sp.fraction(dV)[0]
+    forcing_vars = forcing_names(model)
+    return (term for term in I_net.args if str(term) not in forcing_vars)
+
+
+def conductances(model):
+    """Extract intrinsic conductance terms from the model
+
+    This function works by dividing out any arguments from currents that depend on the voltage
+    """
+    V = sp.Symbol("V")
+    return (sp.prod(t for t in term.args if V not in t.free_symbols) for term in currents(model))
+
+
+def conductance_names(model):
+    """Extract names of conductances in the model"""
+    return (str(expr.args[0]) for expr in currents(model))
