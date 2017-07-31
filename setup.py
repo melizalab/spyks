@@ -9,7 +9,7 @@ from spyks import __version__
 import os
 from setuptools import setup
 
-VERSION = '0.6.0'
+VERSION = '0.6.1'
 cls_txt = """
 Development Status :: 3 - Alpha
 Intended Audience :: Science/Research
@@ -30,6 +30,12 @@ setup(
     packages=['spyks'],
     package_data={'spyks': ["templates/*.cpp"]},
     entry_points={'console_scripts': ['spykscc = spyks.build:compile_script'] },
+    install_requires = [
+        "pybind11>=2.1.1",
+        "Pint>=0.7",
+        "ruamel.yaml>=0.13",
+        "sympy>=1.0"
+    ],
 
     author="Tyler Robbins",
     maintainer='C Daniel Meliza',
