@@ -7,18 +7,30 @@ if sys.hexversion < 0x02070000:
 
 from spyks import __version__
 import os
-import glob
 from setuptools import setup
+
+VERSION = '0.6.0'
+cls_txt = """
+Development Status :: 3 - Alpha
+Intended Audience :: Science/Research
+License :: OSI Approved :: GNU General Public License (GPL)
+Programming Language :: Python
+Topic :: Scientific/Engineering
+Topic :: Internet :: WWW/HTTP
+Topic :: Internet :: WWW/HTTP :: Dynamic Content
+"""
 
 setup(
     name="spyks",
-    version="0.6.0",
+    version=VERSION,
+    description="Generate fast c++ code to integrate neuron models",
+    long_description=open(os.path.join(os.path.dirname(__file__), 'README.md')).read(),
+    classifiers=[x for x in cls_txt.split("\n") if x],
+
     packages=['spyks'],
     package_data={'spyks': ["templates/*.cpp"]},
-
     entry_points={'console_scripts': ['spykscc = spyks.build:compile_script'] },
 
-    description="minimalist spiking neuron model library",
     author="Tyler Robbins",
-    author_email="tdr5wc at the domain 'virginia.edu'",
+    maintainer='C Daniel Meliza',
 )
