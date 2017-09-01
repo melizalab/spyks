@@ -25,7 +25,8 @@ log = logging.getLogger('spyks')   # root logger
 
 
 def simplify_equations(model):
-    m = model.copy()
+    from copy import copy
+    m = copy(model)
     m['equations'] = [(n, expr.simplify()) for n, expr in model['equations']]
     return m
 
