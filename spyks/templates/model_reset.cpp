@@ -83,7 +83,7 @@ PYBIND11_PLUGIN($name) {
         typedef spyks::$name<value_type, interpolator> model;
         py::module m("$name", "$descr");
         py::class_<model>(m, "model")
-                .def("__init__",
+                 .def("__init__",
                      [](model &m,
                         py::array_t<value_type, py::array::c_style | py::array::forcecast> params,
                         py::array_t<value_type, py::array::c_style | py::array::forcecast> forcing,
@@ -120,5 +120,6 @@ PYBIND11_PLUGIN($name) {
               "Integrates model from starting state x0 over the duration of the forcing timeseries",
               "params"_a, "x0"_a, "forcing"_a, "forcing_dt"_a, "stepping_dt"_a);
         m.def("integrate", &spyks::integrate<model>);
+        m.attr("__version__") = py::cast($version);
         return m.ptr();
 }

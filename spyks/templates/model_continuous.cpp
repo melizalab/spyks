@@ -79,5 +79,6 @@ PYBIND11_PLUGIN($name) {
               "Integrates model from starting state x0 over the duration of the forcing timeseries",
               "params"_a, "x0"_a, "forcing"_a, "forcing_dt"_a, "stepping_dt"_a);
         m.def("integrate", &spyks::integrate<model>);
+        m.attr("__version__") = py::cast($version);
         return m.ptr();
 }

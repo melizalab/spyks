@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
 # -*- mode: python -*-
+"""Functions for building extension modules """
+
+# python 3 compatibility
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+from __future__ import unicode_literals
 
 import os
 import sys
@@ -162,32 +169,19 @@ def build_module(cppfile, name, path, **kwargs):
           script_args = args,
           cmdclass = { "build_ext": CustomDestBuildExt })
     shutil.rmtree(build_path)
-    log.info("%s: complete - extension module in %s", name, path)
-
-
-# def import_model(modelfile):
-#     from .core import load_model
-
-#     model = load_model(modelfile)
-#     log.info("%s: validating model", model["name"])
-#     spkv.check_symbols(model)
-#     spkv.check_equations(model)
-#     path = args.target or os.path.dirname(args.model)
-#     cppfile = os.path.join(path, model["name"] + ".cpp")
-#     write_cppfile(model, cppfile)
-
-#     path = os.path.dirname(modelfile)
-#     cppfile = os.path.join(path, model["name"] +
+    log.info("%s: complete - extension module in %s/", name, path)
 
 
 def compile_script(argv=None):
-    from .core import load_model
+    from spyks import __version__
+    from spyks.core import load_model
     import spyks.validate as spkv
     import argparse
 
     p = argparse.ArgumentParser(description="compile a spyks model file into a python extension module")
     p.add_argument("model", help="the model descriptor file to compile")
     p.add_argument("target", help="the path to put the module (default same as model file)", nargs='?')
+    p.add_argument("--version", action="version", version="%(prog)s {}".format(__version__))
     p.add_argument("--skip-compile", help="skip compilation step", action="store_true")
     p.add_argument("--skip-codegen", help="skip code generation step", action="store_true")
     args = p.parse_args(argv)

@@ -4,7 +4,7 @@
 from nose.tools import assert_almost_equal, assert_equal, assert_true
 import numpy as nx
 
-import spyks as s
+import spyks.core as s
 import spyks.validate as sv
 
 from models import adex, nakl, biocm

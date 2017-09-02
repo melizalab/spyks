@@ -10,8 +10,15 @@ model = simplify_equations(model)
 code = render(model)
 
 """
+# python 3 compatibility
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+from __future__ import unicode_literals
+
 import logging
 import sympy as sp
+from spyks._version import __version__
 from spyks.core import n_params, n_state, n_forcing
 
 value_type = "double"
@@ -121,9 +128,14 @@ def render(model):
     else:
         template = "model_continuous.cpp"
 
-    context = dict(name=model["name"],
+    context = dict(spyks_version=__version__,
+                   name=model["name"],
                    descr=model["description"],
-                   head=get_resource("head.cpp"),
+                   version=model.get("version", "SNAPSHOT"))
+
+    head_tmpl=string.Template(get_resource("head.cpp"))
+
+    context.update(head=head_tmpl.substitute(context),
                    n_param=n_params(model),
                    n_state=n_state(model),
                    n_forcing=n_forcing(model),

@@ -12,6 +12,11 @@ dimensional analysis; if units are not specified the quantity is assumed to be
 dimensionless. An array, on the other hand, does not have names or quantities.
 
 """
+# python 3 compatibility
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+from __future__ import unicode_literals
 
 import os
 import sympy as sp
@@ -118,20 +123,20 @@ def mapping_updater(new):
 def load_model(fname):
     """ Loads a model descriptor file. """
     import ruamel.yaml as yaml
-    fp = open(fname, "r")
-    model = yaml.load(fp, yaml.RoundTripLoader)  # preserves order
-    if "base" in model:
-        basefile = os.path.join(os.path.dirname(fname), model["base"] + ".yml")
-        base = load_model(basefile)              # will get parsed
-        if 'parameters' in model:
-            base['parameters'] = list(
-                map(mapping_updater(dict(model['parameters'])), base['parameters']))
-        if 'state' in model:
-            base['state'] = list(
-                map(mapping_updater(dict(model['state'])), base['state']))
-        return base
-    else:
-        return parse(model)
+    with open(fname, "r") as fp:
+        model = yaml.load(fp, yaml.RoundTripLoader)  # preserves order
+        if "base" in model:
+            basefile = os.path.join(os.path.dirname(fname), model["base"] + ".yml")
+            base = load_model(basefile)              # will get parsed
+            if 'parameters' in model:
+                base['parameters'] = list(
+                    map(mapping_updater(dict(model['parameters'])), base['parameters']))
+            if 'state' in model:
+                base['state'] = list(
+                    map(mapping_updater(dict(model['state'])), base['state']))
+            return base
+        else:
+            return parse(model)
 
 
 def update_model(model, **kwargs):
