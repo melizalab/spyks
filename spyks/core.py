@@ -93,8 +93,41 @@ def parse_quantity(x):
         return ureg.parse_expression(x)
 
 
+def parse_equation(n, s):
+    """Parse equations of motion to sympy expression.
+
+    This function tries to be smart about different formulations of state
+    variables ODEs. It can understand the alpha/beta specification and the
+    inf/tau specification. Otherwise it will throw an error. Errors are also
+    thrown on badly formed equations.
+
+    """
+    try:
+        if isinstance(s, dict):
+            # the map class ruaml.yaml uses is borked
+            s = dict(s)
+            if "alpha" in s and "beta" in s:
+                alpha = sp.sympify(s["alpha"])
+                beta = sp.sympify(s["beta"])
+                var = sp.Symbol(n)
+                expr = alpha * (1 - var) - beta * var
+            elif "inf" in s and "tau" in s:
+                minf = sp.sympify(s["inf"])
+                tau = sp.sympify(s["tau"])
+                var = sp.Symbol(n)
+                expr = (minf - var) / tau
+            else:
+                raise ValueError("unable to parse equation spec for {}".format(n))
+        else:
+            expr = sp.sympify(s)
+        return (n, expr)
+    except TypeError:
+        raise ValueError("unable to parse equation spec for {}".format(n))
+
+
 def parse(model):
-    model['equations'] = [(n, sp.sympify(s)) for n,s in model['equations'].items()]
+    from itertools import starmap
+    model['equations'] = list(starmap(parse_equation, model['equations'].items()))
     try:
         reset = model["reset"]
         reset["predicate"] = sp.sympify(reset["predicate"])
