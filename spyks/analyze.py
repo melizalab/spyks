@@ -9,6 +9,7 @@ from __future__ import unicode_literals
 
 from spyks import core
 
+
 def state_fun(model, state):
     """Create a lambda that will evaluate functions of the model state"""
     from spyks.codegen import state_replacements
@@ -32,3 +33,11 @@ def conductances(model, state):
     """Calculate g_x(t) for a completed model"""
     f = state_fun(model, state)
     return [f(expr).to("nS") for expr in core.conductances(model)]
+
+
+def ode_fun(model, var, fname="inf"):
+    """Create a lambda to evaluate var_\inf(V)"""
+    from sympy import Symbol, lambdify
+    ode = core.kinetic_ode(var, **model["eqns_unparsed"][var])
+    context = {Symbol(n): v.magnitude for n, v in model["parameters"]}
+    return lambdify([Symbol('V')], getattr(ode, fname).subs(context))

@@ -93,6 +93,46 @@ def parse_quantity(x):
         return ureg.parse_expression(x)
 
 
+class kinetic_ode(object):
+    """Represents an ODE for a 1st order kinetic process
+
+    Initialize with alpha & beta or inf and tau expressions
+    """
+    _alpha = None
+    _beta = None
+    _inf = None
+    _tau = None
+
+    def __init__(self, n, **eqns):
+        self._var = sp.Symbol(n)
+        if "alpha" in eqns:
+            self._alpha = sp.sympify(eqns["alpha"])
+        if "beta" in eqns:
+            self._beta = sp.sympify(eqns["beta"])
+        if "inf" in eqns:
+            self._inf = sp.sympify(eqns["inf"])
+        if "tau" in eqns:
+            self._tau = sp.sympify(eqns["tau"])
+        if not ((self._alpha is not None and self._beta is not None) or
+                (self._inf is not None and self._tau is not None)):
+            raise ValueError("must specify alpha/beta or inf/tau")
+
+    @property
+    def expr(self):
+        if (self._alpha is not None and self._beta is not None):
+            return self._alpha * (1 - self._var) - self._beta * self._var
+        else:
+            return (self._inf - self._var) / self._tau
+
+    @property
+    def inf(self):
+        return self._inf or self._alpha / (self._alpha + self._beta)
+
+    @property
+    def tau(self):
+        return self._tau or 1 / (self._alpha + self._beta)
+
+
 def parse_equation(n, s):
     """Parse equations of motion to sympy expression.
 
@@ -104,29 +144,17 @@ def parse_equation(n, s):
     """
     try:
         if isinstance(s, dict):
-            # the map class ruaml.yaml uses is borked
-            s = dict(s)
-            if "alpha" in s and "beta" in s:
-                alpha = sp.sympify(s["alpha"])
-                beta = sp.sympify(s["beta"])
-                var = sp.Symbol(n)
-                expr = alpha * (1 - var) - beta * var
-            elif "inf" in s and "tau" in s:
-                minf = sp.sympify(s["inf"])
-                tau = sp.sympify(s["tau"])
-                var = sp.Symbol(n)
-                expr = (minf - var) / tau
-            else:
-                raise ValueError("unable to parse equation spec for {}".format(n))
+            expr = kinetic_ode(n, **s).expr
         else:
             expr = sp.sympify(s)
         return (n, expr)
-    except TypeError:
+    except (TypeError, sp.SympifyError):
         raise ValueError("unable to parse equation spec for {}".format(n))
 
 
 def parse(model):
     from itertools import starmap
+    model['eqns_unparsed'] = model['equations'].copy()
     model['equations'] = list(starmap(parse_equation, model['equations'].items()))
     try:
         reset = model["reset"]
