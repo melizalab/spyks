@@ -153,8 +153,10 @@ def parse_equation(n, s):
 
 
 def parse(model):
+    """Parse equations, variables, and parameters of model into sympy objects"""
     from itertools import starmap
-    model['eqns_unparsed'] = model['equations'].copy()
+    from copy import copy
+    model['eqns_unparsed'] = copy(model['equations'])
     model['equations'] = list(starmap(parse_equation, model['equations'].items()))
     try:
         reset = model["reset"]
