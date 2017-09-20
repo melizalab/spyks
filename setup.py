@@ -39,7 +39,7 @@ setup(
     package_data={'spyks': ["templates/*.cpp"]},
     entry_points={'console_scripts': ['spykscc = spyks.build:compile_script']},
     install_requires=[
-        "pybind11>=2.1.1",
+        "pybind11>=2.2.0",
         "Pint>=0.7",
         "ruamel.yaml>=0.13",
         "sympy>=1.0",
