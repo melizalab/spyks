@@ -8,4 +8,5 @@ In spyks, models are specified in a YAML document that contains at a minimum, th
 
 ### Notes
 
+- To compile models, you'll need a C++ compiler that's compliant with the C++11 or later standard and the boost libraries installed (specifically boost odeint)
 - `pybind11` may not install its headers correctly if it's installed when `python setup.py install` is called. If you get errors about missing headers running `spykscc`, try reinstalling `pip uninstall pybind11; pip install pybind11`
