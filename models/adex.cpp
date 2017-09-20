@@ -146,12 +146,12 @@ integrate(Model & model, py::array_t<typename Model::value_type> x0, double tmax
 
 }
 
-PYBIND11_PLUGIN(adex) {
+PYBIND11_MODULE(adex, m) {
         typedef double value_type;
         typedef double time_type;
         typedef spyks::nn_interpolator<value_type, time_type> interpolator;
         typedef spyks::adex<value_type, interpolator> model;
-        py::module m("adex", "adaptive exponential integrate and fire model");
+        m.doc() = "adaptive exponential integrate and fire model";
         py::class_<model>(m, "model")
                  .def("__init__",
                      [](model &m,
@@ -191,5 +191,4 @@ PYBIND11_PLUGIN(adex) {
               "params"_a, "x0"_a, "forcing"_a, "forcing_dt"_a, "stepping_dt"_a);
         m.def("integrate", &spyks::integrate<model>);
         m.attr("__version__") = py::cast(1.0);
-        return m.ptr();
 }
