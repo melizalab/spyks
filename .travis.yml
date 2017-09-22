@@ -19,7 +19,7 @@ before_install:
 - |
   if [ "$TRAVIS_OS_NAME" = "linux" ]; then export CXX=g++-4.8 CC=gcc-4.8; fi
   pip install --user --upgrade pip virtualenv
-  if [ "$PYTHON" = "3.5"]; then
+  if [ "$PYTHON" = "3.5" ]; then
     pyenv global system 3.5
     python3 -m venv venv/
   else
