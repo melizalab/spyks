@@ -24,6 +24,6 @@ install:
   - pip install -r requirements.txt
   - python setup.py sdist
   - pip install --verbose dist/*.tar.gz
-  - /bin/bash test/build_models.sh
 script:
-  - python tests/test_models.py
+  - /bin/bash test/build_models.sh
+  - nosetests -v

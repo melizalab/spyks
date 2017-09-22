@@ -66,9 +66,9 @@ PYBIND11_MODULE($name, m) {
                                 m(X, out, t);
                                 return out;
                         });
-        m.def("integrate", [](py::array_t<value_type, py::array::c_style | py::array::forcecast> params,
-                              py::array_t<value_type, py::array::c_style | py::array::forcecast> x0,
-                              py::array_t<value_type, py::array::c_style | py::array::forcecast> forcing,
+        m.def("integrate", [](py::array_t<value_type> params,
+                              py::array_t<value_type> x0,
+                              py::array_t<value_type> forcing,
                               time_type forcing_dt, time_type stepping_dt) -> py::array {
                       auto pptr = static_cast<value_type const *>(params.data());
                       time_type tmax = forcing.shape(0) * forcing_dt;

@@ -57,7 +57,7 @@ def has_flag(compiler, flagname):
     """
     from distutils.errors import CompileError
     import tempfile
-    with tempfile.NamedTemporaryFile('w', suffix='.cpp') as f:
+    with tempfile.NamedTemporaryFile('w', suffix='.cpp', delete=True) as f:
         f.write('int main (int argc, char **argv) { return 0; }')
         try:
             compiler.compile([f.name], extra_postargs=[flagname])
@@ -107,6 +107,8 @@ class BuildExt(build_ext):
                 opts.append('-fvisibility=hidden')
             if has_flag(self.compiler, '-ffast-math'):
                 opts.append('-ffast-math')
+            if has_flag(self.compiler, '-flto'):
+                opts.append('-flto')
         elif ct == 'msvc':
             opts.append('/DVERSION_INFO=\\"%s\\"' % self.distribution.get_version())
         for ext in self.extensions:

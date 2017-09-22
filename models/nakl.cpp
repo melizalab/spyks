@@ -115,12 +115,12 @@ integrate(Model & model, py::array_t<typename Model::value_type> x0, double tmax
 }
 
 
-PYBIND11_PLUGIN(nakl) {
+PYBIND11_MODULE(nakl, m) {
         typedef double value_type;
         typedef double time_type;
         typedef spyks::nn_interpolator<value_type, time_type> interpolator;
         typedef spyks::nakl<value_type, interpolator> model;
-        py::module m("nakl", "biophysical neuron model with minimal Na, K, leak conductances");
+        m.doc() = "biophysical neuron model with minimal Na, K, leak conductances";
         py::class_<model>(m, "model")
                 .def("__init__",
                      [](model &m,
@@ -136,9 +136,9 @@ PYBIND11_PLUGIN(nakl) {
                                 m(X, out, t);
                                 return out;
                         });
-        m.def("integrate", [](py::array_t<value_type, py::array::c_style | py::array::forcecast> params,
-                              py::array_t<value_type, py::array::c_style | py::array::forcecast> x0,
-                              py::array_t<value_type, py::array::c_style | py::array::forcecast> forcing,
+        m.def("integrate", [](py::array_t<value_type> params,
+                              py::array_t<value_type> x0,
+                              py::array_t<value_type> forcing,
                               time_type forcing_dt, time_type stepping_dt) -> py::array {
                       auto pptr = static_cast<value_type const *>(params.data());
                       time_type tmax = forcing.shape(0) * forcing_dt;
@@ -150,5 +150,4 @@ PYBIND11_PLUGIN(nakl) {
               "params"_a, "x0"_a, "forcing"_a, "forcing_dt"_a, "stepping_dt"_a);
         m.def("integrate", &spyks::integrate<model>);
         m.attr("__version__") = py::cast(1.0);
-        return m.ptr();
 }
