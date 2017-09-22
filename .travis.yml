@@ -18,7 +18,14 @@ addons:
 before_install:
 - |
   if [ "$TRAVIS_OS_NAME" = "linux" ]; then export CXX=g++-4.8 CC=gcc-4.8; fi
-  pyenv global system $PYTHON
+  pip install --user --upgrade pip virtualenv
+  if [ "$PYTHON" = "3.5" ]; then
+    pyenv global system 3.5
+    virtualenv -p python3 venv
+  else
+    virtualenv -p python$PYTHON venv
+  fi
+  source venv/bin/activate
 install:
   - pip install -r requirements.txt
   - python setup.py sdist
