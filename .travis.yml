@@ -1,27 +1,29 @@
 sudo: false
-language: python
-python:
-  - "2.7"
-  # - "3.4"
-  # - "3.5"
-  # - "3.6"
-# command to install dependencies
+language: cpp
+dist: trusty
+matrix:
+  include:
+    - os: linux
+      env: PYTHON=2.7
 addons:
   apt:
-    sources:
-      - ubuntu-toolchain-r-test
+    # sources:
+    #   - ubuntu-toolchain-r-test
     packages:
-      - g++-4.9
-      - gcc-4.9
+      # - g++-4.9
+      # - gcc-4.9
       - libboost-dev
   env:
-    - MATRIX_EVAL="CC=gcc-4.9 && CXX=g++-4.9"
+    - MATRIX_EVAL="CC=gcc-4.8 && CXX=g++-4.8"
 before_install:
-  - eval "${MATRIX_EVAL}"
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then export CXX=g++-4.8 CC=gcc-4.8; fi
+  - pip install --user --upgrade pip virtualenv
+  - virtualenv -p python$PYTHON venv
+  - source venv/bin/activate
 install:
   - pip install -r requirements.txt
-script:
-  - g++ --version
-  - python setup.py install
+  - python setup.py sdist
+  - pip install --verbose dist/*.tar.gz
   - /bin/bash test/build_models.sh
-  - python setup.py test
+script:
+  - python tests/test_models.py
