@@ -16,11 +16,16 @@ addons:
   env:
     - MATRIX_EVAL="CC=gcc-4.8 && CXX=g++-4.8"
 before_install:
-  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then export CXX=g++-4.8 CC=gcc-4.8; fi
-  - pip install --user --upgrade pip virtualenv
-  - if [ "$PYTHON" = "3.5"]; then pyenv global system 3.5; fi
-  - virtualenv -p python$PYTHON venv
-  - source venv/bin/activate
+  -|
+  if [ "$TRAVIS_OS_NAME" = "linux" ]; then export CXX=g++-4.8 CC=gcc-4.8; fi
+  pip install --user --upgrade pip virtualenv
+  if [ "$PYTHON" = "3.5"]; then
+    pyenv global system 3.5
+    python3 -m venv venv/
+  else
+    virtualenv -p python$PYTHON venv
+  fi
+  source venv/bin/activate
 install:
   - pip install -r requirements.txt
   - python setup.py sdist
