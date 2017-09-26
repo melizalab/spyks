@@ -7,7 +7,6 @@ import numpy as nx
 import spyks.core as s
 import spyks.validate as sv
 
-from models import adex, nakl, biocm
 
 adex_params = [
     {'params': [250, 30, -70.6, 2.0, -55, 144, 4, -70.6, 80.5, 30],
@@ -24,6 +23,7 @@ adex_params = [
 
 def test_adex_dxdt():
     pymodel = s.load_model("models/adex.yml")
+    adex = s.load_module(pymodel, "models")
     def compare_adex(params, forcing, state):
         # inj = models.timeseries(forcing, 0.05)
         model = adex.model(params, forcing, 0.05)
@@ -37,6 +37,7 @@ def test_adex_dxdt():
 
 def test_adex_reset():
     pymodel = s.load_model("models/adex.yml")
+    adex = s.load_module(pymodel, "models")
     def compare_reset(params, forcing, state):
         model = adex.model(params, forcing, 0.05)
         reset, new_state = model.reset(state)
@@ -53,6 +54,8 @@ def test_adex_reset():
 
 
 def test_adex_integration():
+    pymodel = s.load_model("models/adex.yml")
+    adex = s.load_module(pymodel, "models")
     I = 500
     N = 1000
     dt = 0.05
@@ -90,6 +93,7 @@ nakl_params = [
 
 def test_nakl_dxdt():
     pymodel = s.load_model("models/nakl.yml")
+    nakl = s.load_module(pymodel, "models")
     def compare_nakl(params, forcing, state):
         model = nakl.model(params, forcing, 0.05)
         dXdt = model(state, 0)
@@ -101,6 +105,8 @@ def test_nakl_dxdt():
 
 
 def test_nakl_integration(I=50):
+    pymodel = s.load_model("models/nakl.yml")
+    nakl = s.load_module(pymodel, "models")
     N = 10000
     dt = 0.05
     params = nakl_params[0]['params']
@@ -115,6 +121,7 @@ def test_nakl_integration(I=50):
 
 def test_biocm():
     pymodel = s.load_model("models/biocm.yml")
+    biocm = s.load_module(pymodel, "models")
     params = s.to_array(pymodel['parameters'])
     forcing = s.to_array(pymodel['forcing'])
     state = s.to_array(pymodel['state'])
@@ -128,6 +135,7 @@ def test_biocm_integration(I=20):
     N = 5000
     dt = 0.05
     pymodel = s.load_model("models/biocm.yml")
+    biocm = s.load_module(pymodel, "models")
     params = s.to_array(pymodel['parameters'])
     x0 = s.to_array(pymodel['state'])
     data = nx.ones(N) * I

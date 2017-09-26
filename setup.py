@@ -49,6 +49,5 @@ setup(
     author="Tyler Robbins",
     maintainer='C Daniel Meliza',
     url="https://github.com/melizalab/spyks",
-    download_url="https://github.com/melizalab/spyks/archive/%s.tar.gz" % __version__,
     test_suite='nose.collector'
 )

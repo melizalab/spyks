@@ -51,6 +51,8 @@ PYBIND11_MODULE($name, m) {
         typedef spyks::nn_interpolator<value_type, time_type> interpolator;
         typedef spyks::$name<value_type, interpolator> model;
         m.doc() = "$descr";
+        m.attr("name") = py::cast("$name");
+        m.attr("__version__") = py::cast($version);
         py::class_<model>(m, "model")
                 .def("__init__",
                      [](model &m,
@@ -79,5 +81,4 @@ PYBIND11_MODULE($name, m) {
               "Integrates model from starting state x0 over the duration of the forcing timeseries",
               "params"_a, "x0"_a, "forcing"_a, "forcing_dt"_a, "stepping_dt"_a);
         m.def("integrate", &spyks::integrate<model>);
-        m.attr("__version__") = py::cast($version);
 }

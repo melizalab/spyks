@@ -213,6 +213,31 @@ def update_model(model, **kwargs):
         model[key] = to_mapping(array, model[key])
 
 
+def load_module(model, path=None):
+    """Loads the extension module associated with model.
+
+    If `path` of extension module file is supplied, temporarily adds it to
+    sys.path. Raises an error if the name or version don't match.
+
+    """
+    import sys
+    import importlib
+    if path is not None:
+        sys.path.append(path)
+    try:
+        mdl = importlib.import_module(model["name"])
+        if mdl.name != model["name"]:
+            raise ImportError("extension module name ({}) doesn't match model name ({})".format(mdl.name,
+                                                                                                model["name"]))
+        if mdl.__version__ != model["version"]:
+            raise ImportError("extension module version ({}) doesn't match descriptor ({})".format(mdl.__version__,
+                                                                                                   model["version"]))
+    finally:
+        if path is not None:
+            sys.path.remove(path)
+    return mdl
+
+
 def currents(model):
     """Extract intrinsic current terms from the model
 
