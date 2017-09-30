@@ -172,7 +172,7 @@ def parse(model):
     return model
 
 
-def mapping_updater(new):
+def _mapping_updater(new):
     """Returns an f that updates mapping elements with values in new, converting units as needed"""
     def f(kv):
         n, v = kv
@@ -193,10 +193,10 @@ def load_model(fname):
             base = load_model(basefile)              # will get parsed
             if 'parameters' in model:
                 base['parameters'] = list(
-                    map(mapping_updater(dict(model['parameters'])), base['parameters']))
+                    map(_mapping_updater(dict(model['parameters'])), base['parameters']))
             if 'state' in model:
                 base['state'] = list(
-                    map(mapping_updater(dict(model['state'])), base['state']))
+                    map(_mapping_updater(dict(model['state'])), base['state']))
             return base
         else:
             return parse(model)
@@ -211,6 +211,11 @@ def update_model(model, **kwargs):
     """
     for key, array in kwargs.items():
         model[key] = to_mapping(array, model[key])
+
+
+def get_param_value(model, name):
+    """ Return parameter value from model """
+    return dict(model["parameters"]).get(name)
 
 
 def load_module(model, path=None):

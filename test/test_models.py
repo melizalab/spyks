@@ -7,6 +7,54 @@ import numpy as nx
 import spyks.core as s
 import spyks.validate as sv
 
+passive_params = [
+    {'params': [57, 5.5, -70., 0., -65.],
+     'forcing': [[0., 0.]],
+     'state': [-70.]},
+    {'params': (57, 5.5, -70., 0., -65.),
+     'forcing': [[1.0, 0.]],
+     'state': [-75.]},
+    {'params': nx.asarray([57, 5.5, -70., 0., -65.]),
+     'forcing': [[0., 2.0]],
+     'state': [-50.]},
+]
+
+
+def test_passive_ei_deriv():
+    pymodel = s.load_model("models/passive_ei.yml")
+    passive_ei = s.load_module(pymodel, "models")
+    def compare(params, forcing, state):
+        model = passive_ei.model(params, forcing, 0.05)
+        dXdt = model(state, 0)
+        s.update_model(pymodel, state=state, forcing=forcing[0], parameters=params)
+        pydXdt = s.to_array(sv.deriv(pymodel))
+        assert_true(nx.allclose(dXdt, pydXdt))
+    for tvals in passive_params:
+        yield compare, tvals['params'], tvals['forcing'], tvals['state']
+
+
+def test_passive_ei_integration():
+    pymodel = s.load_model("models/passive_ei.yml")
+    passive_ei = s.load_module(pymodel, "models")
+    g_ex = 1.0
+    g_inh = 0.5
+    N = 2000
+    dt = 0.05
+    params = s.to_array(pymodel['parameters'])
+    forcing = nx.column_stack([nx.ones(N) * g_ex, nx.ones(N) * g_inh])
+    x0 = s.to_array(pymodel['state'])
+    model = passive_ei.model(params, forcing, dt)
+    X = passive_ei.integrate(params, x0, forcing, dt, dt)
+    X2 = passive_ei.integrate(model, x0, N * dt, dt)
+    assert_true(nx.allclose(X, X2))
+    # steady-state V should be a weighted average of the reversal potentials
+    g_l = s.get_param_value(pymodel, 'g_l')
+    Evals = [s.get_param_value(pymodel, n) for n in ('E_l', 'E_ex', 'E_inh')]
+    gvals = [g_l, g_ex * g_l.units, g_inh * g_l.units]
+    V_steady = sum(g * e for e, g in zip(Evals, gvals)) / sum(gvals)
+    events = (X[:,0] > 29.9).nonzero()[0]
+    assert_almost_equal(V_steady.magnitude, X[-1, 0], places=2)
+
 
 adex_params = [
     {'params': [250, 30, -70.6, 2.0, -55, 144, 4, -70.6, 80.5, 30],
