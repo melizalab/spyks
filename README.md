@@ -6,7 +6,7 @@ spyks is a tool for building and simulating simple, dynamical neuron models. It 
 
 In general, a dynamical neuron model comprises a set of ordinary differential equations `dX/dt = F(X, t, θ)` that determine how the state of the neuron `X` evolves in time. The components of the state vector include the membrane voltage and the (in)activation states of the various currents that contribute to the voltage. In the classical Hodgkin-Huxley model, these additional variables, called `m`, `h`, and `n`, obey first-order kinetics. In many phenomenological models, the voltage diverges when the neuron spikes, and the model must also include a rule for resetting the state when this occurs. The vector `θ` comprises parameters that govern the behavior of the system (for example, the reversal potential of the fast sodium current or the half-activation voltage of a delayed-rectifier potassium current). Parameters are assumed to be constant.
 
-In spyks, models are specified in a YAML document that contains at a minimum, the equations of motion in symbolic form and values for all of the parameters and state variables. The model may also include a reset rule. Values are specified with physical units for dimensional analysis and reduced errors from unit mismatches. Here's an example for the classic Hodkin-Huxley model:
+In spyks, models are specified in a YAML document that contains at a minimum, the equations of motion in symbolic form and values for all of the parameters and state variables. The model may also include a reset rule. Values are specified with physical units for dimensional analysis and reduced errors from unit mismatches. Here's an example for the classic Hodkin-Huxley model. We're using hyperbolic tangents to parameterize the steady-state activation and time constant functions for historical reasons (the derivatives are more numerically stable).
 
 ``` YAML
 ---
@@ -60,9 +60,26 @@ parameters:
   dvnt: -30 mV
 ```
 
-Other examples are in the `models` directory. To compile this model into a Python extension module, just run `spykscc models/nakl.yml` in the shell. In Python
+Other examples are in the `models` directory. To compile this model into a Python extension module, just run `spykscc models/nakl.yml` in the shell. In Python:
 
-### Notes
+``` Python
+import numpy as np
+import spyks.core as spk
+
+pymodel = spk.load_model("models/nakl.yml")
+nakl = spk.load_module(pymodel, "models")
+params = spk.to_array(pymodel['parameters'])
+initial_state = [-70, 0, 0, 0]
+
+Iinj = np.zeros(10000)
+Iinj[2000:] = 50
+dt = 0.05
+
+X = nakl.integrate(params, initial_state, Iinj, dt, dt)
+
+```
+
+### Installation Notes
 
 - To compile models, you'll need a C++ compiler that's compliant with the C++11 or later standard and the boost libraries installed (specifically boost odeint)
 - `pybind11` may not install its headers correctly if it's installed when `python setup.py install` is called. If you get errors about missing headers running `spykscc`, try reinstalling `pip uninstall pybind11; pip install pybind11`
