@@ -12,9 +12,15 @@ forcing:
   Iinj: 0 pA
 equations:
   V: 1/C * ((gna*m*m*m*h*(Ena - V)) + (gk*n*n*n*n*(Ek - V)) + (gl*(El-V)) + Iinj)
-  m: ((1+tanh((V - vm)/dvm))/2 - m) / (tm0 + tm1 * (1 - tanh((V - vmt)/dvmt)**2))
-  h: ((1+tanh((V - vh)/dvh))/2 - h) / (th0 + th1 * (1 - tanh((V - vht)/dvht)**2))
-  n: ((1+tanh((V - vn)/dvn))/2 - n) / (tn0 + tn1 * (1 - tanh((V - vnt)/dvnt)**2))
+  m:
+    inf: (1+tanh((V - vm)/dvm))/2
+    tau: (tm0 + tm1 * (1 - tanh((V - vmt)/dvmt)**2))
+  h:
+    inf: (1+tanh((V - vh)/dvh))/2
+    tau: (th0 + th1 * (1 - tanh((V - vht)/dvht)**2))
+  n:
+    inf: (1+tanh((V - vn)/dvn))/2
+    tau: (tn0 + tn1 * (1 - tanh((V - vnt)/dvnt)**2))
 parameters:
   C: 250 pF
   gna: 120 nS

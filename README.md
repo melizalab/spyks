@@ -6,7 +6,61 @@ spyks is a tool for building and simulating simple, dynamical neuron models. It 
 
 In general, a dynamical neuron model comprises a set of ordinary differential equations `dX/dt = F(X, t, θ)` that determine how the state of the neuron `X` evolves in time. The components of the state vector include the membrane voltage and the (in)activation states of the various currents that contribute to the voltage. In the classical Hodgkin-Huxley model, these additional variables, called `m`, `h`, and `n`, obey first-order kinetics. In many phenomenological models, the voltage diverges when the neuron spikes, and the model must also include a rule for resetting the state when this occurs. The vector `θ` comprises parameters that govern the behavior of the system (for example, the reversal potential of the fast sodium current or the half-activation voltage of a delayed-rectifier potassium current). Parameters are assumed to be constant.
 
-In spyks, models are specified in a YAML document that contains at a minimum, the equations of motion in symbolic form and values for all of the parameters and state variables. The model may also include a reset rule. Values are specified with physical units for dimensional analysis and reduced errors from unit mismatches.
+In spyks, models are specified in a YAML document that contains at a minimum, the equations of motion in symbolic form and values for all of the parameters and state variables. The model may also include a reset rule. Values are specified with physical units for dimensional analysis and reduced errors from unit mismatches. Here's an example for the classic Hodkin-Huxley model:
+
+``` YAML
+---
+name: nakl
+description: biophysical neuron model with minimal Na, K, leak conductances
+author: dmeliza
+version: 1.0
+state:
+  V: -70 mV
+  m: 0
+  h: 0
+  n: 0
+forcing:
+  Iinj: 0 pA
+equations:
+  V: 1/C * ((gna*m*m*m*h*(Ena - V)) + (gk*n*n*n*n*(Ek - V)) + (gl*(El-V)) + Iinj)
+  m:
+    inf: (1+tanh((V - vm)/dvm))/2
+    tau: (tm0 + tm1 * (1 - tanh((V - vmt)/dvmt)**2))
+  h:
+    inf: (1+tanh((V - vh)/dvh))/2
+    tau: (th0 + th1 * (1 - tanh((V - vht)/dvht)**2))
+  n:
+    inf: (1+tanh((V - vn)/dvn))/2
+    tau: (tn0 + tn1 * (1 - tanh((V - vnt)/dvnt)**2))
+parameters:
+  C: 250 pF
+  gna: 120 nS
+  Ena: 50 mV
+  gk: 20 nS
+  Ek: -77 mV
+  gl: 0.3 nS
+  El: -54.4 mV
+  vm: -40 mV
+  dvm: 15 mV
+  tm0: 0.1 ms
+  tm1: 0.4 ms
+  vmt: -40 mV
+  dvmt: 15 mV
+  vh: -60 mV
+  dvh: -15 mV
+  th0: 1 ms
+  th1: 7 ms
+  vht: -60 mV
+  dvht: -15 mV
+  vn: -55 mV
+  dvn: 40 mV
+  tn0: 1 ms
+  tn1: 5 ms
+  vnt: -55 mV
+  dvnt: -30 mV
+```
+
+Other examples are in the `models` directory. To compile this model into a Python extension module, just run `spykscc models/nakl.yml` in the shell. In Python
 
 ### Notes
 

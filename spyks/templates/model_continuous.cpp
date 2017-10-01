@@ -56,9 +56,10 @@ PYBIND11_MODULE($name, m) {
         py::class_<model>(m, "model")
                 .def("__init__",
                      [](model &m,
-                        py::array_t<value_type, py::array::c_style | py::array::forcecast> params,
-                        py::array_t<value_type, py::array::c_style | py::array::forcecast> forcing,
+                        py::array_t<value_type> params,
+                        py::array_t<value_type> forcing,
                         time_type forcing_dt) {
+                             // TODO: check forcing dimensions and shape
                              auto pptr = static_cast<value_type const *>(params.data());
                              auto _forcing = interpolator(forcing, forcing_dt);
                              new (&m) model(pptr, _forcing);
