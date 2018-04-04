@@ -13,7 +13,7 @@ from __future__ import unicode_literals
 def context(model):
     """ Returns the model's components and related math functions in a dict for eval'ing equations """
     import numpy as nx
-    context = {'exp': nx.exp, 'tanh': nx.tanh, 'pow': nx.power, 'sqrt': nx.sqrt}
+    context = {'exp': nx.exp, 'tanh': nx.tanh, 'pow': nx.power, 'sqrt': nx.sqrt, 'expm1': nx.expm1}
     context.update(model['state'])
     context.update(model['forcing'])
     context.update(model['parameters'])
@@ -23,6 +23,10 @@ def context(model):
 def evalf(eqn, context):
     from sympy.printing.lambdarepr import lambdarepr
     return eval(lambdarepr(eqn), {}, context)
+
+
+def _deriv_g(model):
+    """ Generator that evaluates each component of the model system dX/dt = F(X, t). Will throw error if dimensional analysis fails. """
 
 
 def deriv(model):
@@ -54,10 +58,20 @@ def check_symbols(model):
 
 def check_equations(model):
     """ Raises ValueError iff mismatch between names or units of equations and state vector """
+    from pint.errors import DimensionalityError
     from .core import ureg
+    ctx = context(model)
     dt = 1 * ureg.ms
     X = model['state']
-    dX = deriv(model)           # will raise error if dimensions are bad
+    dX = list()
+    # check dimensions
+    for variable, eqn in model['equations']:
+        try:
+            d = evalf(eqn, ctx)
+            dX.append((variable, d))
+        except DimensionalityError as e:
+            raise ValueError(
+                "Dimensionality error in d{}/dt = {}: {}".format(variable, eqn, e))
     for ((n1, v1), (n2, v2)) in zip(X, dX):
         if n1 != n2:
             raise ValueError(
@@ -66,8 +80,8 @@ def check_equations(model):
             x = v1 + dt * v2
         except:
             raise ValueError("Units mismatch between ({}) and derivative ({}) for {}".format(v1.units,
-                                                                                                   v2.units,
-                                                                                                   n1))
+                                                                                             v2.units,
+                                                                                             n1))
 
 
 def check_forcing(model, forcing):
