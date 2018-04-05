@@ -80,6 +80,12 @@ def to_array(mapping):
     return fromiter((v.magnitude for k, v in mapping), dtype='d', count=len(mapping))
 
 
+def to_scaled_array(mapping):
+    """ Converts named vector of quantities into a dimensionless array. """
+    from numpy import fromiter
+    return fromiter((v.to_base_units().magnitude for k, v in mapping), dtype='d', count=len(mapping))
+
+
 def to_mapping(array, mapping):
     """ Binds values in array to names and units in mapping. Size of array must match mapping. """
     assert len(array) == len(mapping)
@@ -126,11 +132,20 @@ class kinetic_ode(object):
 
     @property
     def inf(self):
-        return self._inf or self._alpha / (self._alpha + self._beta)
+        return self._inf or self._alpha / (self.alpha + self.beta)
 
     @property
     def tau(self):
-        return self._tau or 1 / (self._alpha + self._beta)
+        return self._tau or 1 / (self.alpha + self.beta)
+
+    @property
+    def alpha(self):
+        return self._alpha or (self.inf / self.tau)
+
+    @property
+    def beta(self):
+        return self._beta or ((1 - self.inf) / self.tau)
+
 
 
 def parse_equation(n, s):
@@ -183,23 +198,29 @@ def _mapping_updater(new):
     return f
 
 
-def load_model(fname):
-    """ Loads a model descriptor file. """
+def load_model(doc):
+    """ Loads a model descriptor from a file, string, or stream """
     import ruamel.yaml as yaml
-    with open(fname, "r") as fp:
-        model = yaml.load(fp, yaml.RoundTripLoader)  # preserves order
-        if "base" in model:
-            basefile = os.path.join(os.path.dirname(fname), model["base"] + ".yml")
-            base = load_model(basefile)              # will get parsed
-            if 'parameters' in model:
-                base['parameters'] = list(
-                    map(_mapping_updater(dict(model['parameters'])), base['parameters']))
-            if 'state' in model:
-                base['state'] = list(
-                    map(_mapping_updater(dict(model['state'])), base['state']))
-            return base
-        else:
-            return parse(model)
+    if os.path.exists(doc):
+        fname = doc
+        fp = open(doc, "r")
+        model = yaml.load(fp, yaml.RoundTripLoader)
+        fp.close()
+    else:
+        fname = ""
+        model = yaml.load(doc, yaml.RoundTripLoader)
+    if "base" in model:
+        basefile = os.path.join(os.path.dirname(fname), model["base"] + ".yml")
+        base = load_model(basefile)              # will get parsed
+        if 'parameters' in model:
+            base['parameters'] = list(
+                map(_mapping_updater(dict(model['parameters'])), base['parameters']))
+        if 'state' in model:
+            base['state'] = list(
+                map(_mapping_updater(dict(model['state'])), base['state']))
+        return base
+    else:
+        return parse(model)
 
 
 def update_model(model, **kwargs):

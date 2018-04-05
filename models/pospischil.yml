@@ -1,0 +1,69 @@
+---
+name: pospischil
+description: minimal HH-type model for RS and FS cortical neurons from Pospischil et al (no Ca)
+comments: >-
+  Equations and parameters gleaned from Pospischil et al 2008
+  (doi:10.1007/s00422-008-0263-8). The activation kinetics have been refit to
+  inf/tau form. This model does not include the calcium state variables.
+author: dmeliza
+version: 1.0
+state:
+  V: -70.4 mV
+  na_m: 0.000
+  na_h: 0.999
+  kd_m: 0.001
+  km_m: 0.027
+equations:
+  V: >
+    1/C * (g_l * (E_l - V) +
+           g_na * na_m**3 * na_h * (E_na - V) +
+           g_kd * kd_m**4 * (E_k - V) +
+           g_km * km_m * (E_k - V) +
+           Iinj)
+  na_m:
+    inf: (1+tanh((V - nam_v) / nam_dv))/2
+    tau: (nam_t0 + nam_t1 * (1 - tanh((V - nam_tv) / nam_tdv)**2))
+  na_h:
+    alpha: nah_a0 * exp(-(V - nah_va) / nah_dva)
+    beta: nah_b0 / (1 + exp(-(V - nah_vb) / nah_dvb))
+  kd_m:
+    inf: (1+tanh((V - kdm_v) / kdm_dv))/2
+    tau: (kdm_t0 + kdm_t1 * (1 - tanh((V - kdm_tv) / kdm_tdv)**2))
+  km_m:
+    inf: (1+tanh((V - kmm_v) / kmm_dv))/2
+    tau: (kmm_t0 + kmm_t1 * (1 - tanh((V - kmm_tv) / kmm_tdv)**2))
+forcing:
+  Iinj: 0 pA
+parameters:
+  C: 290 pF
+  E_l: -70 mV
+  E_na: 50 mV
+  E_k: -90 mV
+  g_l: 29 nS
+  g_na: 15000 nS
+  g_kd: 1500 nS
+  g_km: 21 nS
+  nam_v: -35 mV
+  nam_dv: 14 mV
+  nam_t0: 0.028 ms
+  nam_t1: 0.089 ms
+  nam_tv: -37.9 mV
+  nam_tdv: 38.9 mV
+  nah_a0: 0.128 ms^-1
+  nah_va: -44 mV
+  nah_dva: 18 mV
+  nah_b0: 4 ms^-1
+  nah_vb: -21 mV
+  nah_dvb: 5 mV
+  kdm_v: -34.8 mV
+  kdm_dv: 22.1 mV
+  kdm_t0: 0.294 ms
+  kdm_t1: 1.32 ms
+  kdm_tv: -49.9 mV
+  kdm_tdv: 35.0 mV
+  kmm_v: -35 mV
+  kmm_dv: 20 mV
+  kmm_t0: 17.8 ms
+  kmm_t1: 1064 ms
+  kmm_tv: -46.9 mV
+  kmm_tdv: 30.5 mV
