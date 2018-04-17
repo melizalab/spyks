@@ -196,7 +196,11 @@ def compile_script(argv=None):
     ch.setFormatter(formatter)
     log.addHandler(ch)
 
-    model = load_model(args.model)
+    try:
+        model = load_model(args.model, load_base=False)
+    except ValueError:
+        log.info("%s extends a base model - compile the base model instead", args.model)
+        return 0
     log.info("%s: validating model", model["name"])
     spkv.check_symbols(model)
     spkv.check_equations(model)

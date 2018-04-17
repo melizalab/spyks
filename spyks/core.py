@@ -198,8 +198,15 @@ def _mapping_updater(new):
     return f
 
 
-def load_model(doc):
-    """ Loads a model descriptor from a file, string, or stream """
+def load_model(doc, load_base=True):
+    """Loads a model descriptor from a file, string, or stream
+
+    If the model descriptor has a "base" field, by default this function will
+    use the supplied model to update the base model's default parameter and
+    state values. If load_base is not True, then the function will raise a
+    ValueError.
+
+    """
     import ruamel.yaml as yaml
     if os.path.exists(doc):
         fname = doc
@@ -210,6 +217,8 @@ def load_model(doc):
         fname = ""
         model = yaml.load(doc, yaml.RoundTripLoader)
     if "base" in model:
+        if not load_base:
+            raise ValueError("model extends %s but load_base is False" % model["base"])
         basefile = os.path.join(os.path.dirname(fname), model["base"] + ".yml")
         base = load_model(basefile)              # will get parsed
         if 'parameters' in model:
