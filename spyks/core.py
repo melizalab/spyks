@@ -157,8 +157,9 @@ def parse_equation(n, s):
     thrown on badly formed equations.
 
     """
+    import ruamel.yaml as yaml
     try:
-        if isinstance(s, dict):
+        if isinstance(s, (dict, yaml.comments.CommentedMap)):
             expr = kinetic_ode(n, **s).expr
         else:
             expr = sp.sympify(s)
