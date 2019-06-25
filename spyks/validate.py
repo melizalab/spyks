@@ -12,8 +12,9 @@ from __future__ import unicode_literals
 
 def context(model):
     """ Returns the model's components and related math functions in a dict for eval'ing equations """
+    import math
     import numpy as nx
-    context = {'exp': nx.exp, 'tanh': nx.tanh, 'pow': nx.power, 'sqrt': nx.sqrt, 'expm1': nx.expm1}
+    context = {'math': math, 'exp': nx.exp, 'tanh': nx.tanh, 'pow': nx.power, 'sqrt': nx.sqrt, 'expm1': nx.expm1}
     context.update(model['state'])
     context.update(model['forcing'])
     context.update(model['parameters'])
