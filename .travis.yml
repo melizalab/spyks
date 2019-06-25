@@ -3,18 +3,18 @@ language: cpp
 dist: trusty
 matrix:
   include:
-    - os: linux
-      env: PYTHON=2.7
-    - os: linux
-      env: PYTHON=3.4
-    - os: linux
-      env: PYTHON=3.5
+  - os: linux
+    env: PYTHON=2.7
+  - os: linux
+    env: PYTHON=3.5
+  - os: linux
+    env: PYTHON=3.6
 addons:
   apt:
     packages:
-      - libboost-dev
+    - libboost-dev
   env:
-    - MATRIX_EVAL="CC=gcc-4.8 && CXX=g++-4.8"
+  - MATRIX_EVAL="CC=gcc-4.8 && CXX=g++-4.8"
 before_install:
 - |
   if [ "$TRAVIS_OS_NAME" = "linux" ]; then export CXX=g++-4.8 CC=gcc-4.8; fi
@@ -27,9 +27,12 @@ before_install:
   fi
   source venv/bin/activate
 install:
-  - pip install -r requirements.txt
-  - python setup.py sdist
-  - pip install --verbose dist/*.tar.gz
+- pip install -r requirements.txt
+- python setup.py sdist
+- pip install --verbose dist/*.tar.gz
 script:
-  - /bin/bash test/build_models.sh
-  - nosetests -v
+- "/bin/bash test/build_models.sh"
+- nosetests -v
+notifications:
+  slack:
+    secure: 5I1W+AFTV4ZaZCPMVvTp2JMAhjSvQ6Xx47xf+6Sv6+XsOBvMyHYy0ICjGhg4Tnc8mtZNLI6tYJ7hswpch9qrA7C3VHExCG23tnUkqmuzgUcBmcIXLXJj0wW24wHSYqQIlV7k12M3wC0io4ICAn6NDGDesrQjFnMb54I+pv2ixOtYHIhg4afr4GJKsB7hNn84IERTNy2Lnq7tZvTEu4+rttqdKh9j/a9sJ9O71FJn93UOnACllzKrmJh/hJI921GwEYlmY2jAWhS8bCoX0cnExYxpYj3nlOa2HvPFn6kVAHU+iaCxxAaLbfylmCAhD1W7w/fkNnqn7pV8wcJXOXZl/6aRMrHghkmOLumLPLByjDKXasbLTo9N22wJD56WRRuMXmefVgZPxduYLijvM+nWOhCPIjULi+ohcdsj9TkLLeTbcq7UoHDwUaP2lpP0X1pUxrh9O+zvdGmEiDDYYja+s+374xLwAi9v+CNx+WM/ifQNC9PIehzQYqBPMDotFlHuI6Drnt3C4RBsJIXhQPveK8lKafNJGTTN4opgtmG6AzvE56sBAdY/5XT4wEpmQwLBxyAbAenI7OgJWDuKqn+QrgcPROBxl1KBoS5IE0EMyuZV+M3q8lBMCpIEM3KZekGqqfK/oiXI6cNvlT1+kUVrKF9vVzx8BgE0DCxF6MrxBjE=
