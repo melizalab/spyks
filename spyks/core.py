@@ -249,6 +249,11 @@ def get_param_value(model, name):
     return dict(model["parameters"]).get(name)
 
 
+def set_param_value(model, name, value):
+    """ Update parameter value in the model """
+    model["parameters"][name] = value
+
+
 def load_module(model, path=None):
     """Loads the extension module associated with model.
 
