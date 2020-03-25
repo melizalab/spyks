@@ -251,7 +251,11 @@ def get_param_value(model, name):
 
 def set_param_value(model, name, value):
     """ Update parameter value in the model """
-    model["parameters"][name] = value
+    # this is somewhat clunky because the parameters are in a list, not a dict
+    for i, (param, old) in enumerate(model["parameters"]):
+        if param == name:
+            model["parameters"][i] = (param, value)
+            break
 
 
 def load_module(model, path=None):
