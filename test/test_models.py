@@ -19,9 +19,7 @@ passive_params = [
      'state': [-50.]},
 ]
 
-class TestModels(unittest.TestCase):
-
-
+class TestPassiveModel(unittest.TestCase):
     def test_passive_ei_deriv(self):
         pymodel = s.load_model("models/passive_ei.yml")
         passive_ei = s.load_module(pymodel, "models")
@@ -33,7 +31,6 @@ class TestModels(unittest.TestCase):
             self.assertTrue(np.allclose(dXdt, pydXdt))
         for tvals in passive_params:
             yield compare, tvals['params'], tvals['forcing'], tvals['state']
-
 
     def test_passive_ei_integration(self):
         pymodel = s.load_model("models/passive_ei.yml")
@@ -58,19 +55,19 @@ class TestModels(unittest.TestCase):
         self.assertAlmostEqual(V_steady.magnitude, X[-1, 0], places=2)
 
 
-    adex_params = [
-        {'params': [250, 30, -70.6, 2.0, -55, 144, 4, -70.6, 80.5, 30],
-         'forcing': [0.],
-         'state': [-70., 0]},
-        {'params': (200, 32, -65, 2.0, -56, 120, 5, -70.6, 80.5, 30),
-         'forcing': [0.05],
-         'state': [-50., 0]},
-        {'params': np.asarray([200, 32, -65, 2.0, -56, 120, 5, -70.6, 80.5, 30]),
-         'forcing': [0.05],
-         'state': [50., 10]},
-    ]
+adex_params = [
+    {'params': [250, 30, -70.6, 2.0, -55, 144, 4, -70.6, 80.5, 30],
+     'forcing': [0.],
+     'state': [-70., 0]},
+    {'params': (200, 32, -65, 2.0, -56, 120, 5, -70.6, 80.5, 30),
+     'forcing': [0.05],
+     'state': [-50., 0]},
+    {'params': np.asarray([200, 32, -65, 2.0, -56, 120, 5, -70.6, 80.5, 30]),
+     'forcing': [0.05],
+     'state': [50., 10]},
+]
 
-
+class TestAdExModel(unittest.TestCase):
     def test_adex_dxdt(self):
         pymodel = s.load_model("models/adex.yml")
         adex = s.load_module(pymodel, "models")
@@ -83,7 +80,6 @@ class TestModels(unittest.TestCase):
             self.assertTrue(np.allclose(dXdt, pydXdt))
         for tvals in adex_params:
             yield compare_adex, tvals['params'], tvals['forcing'], tvals['state']
-
 
     def test_adex_reset(self):
         pymodel = s.load_model("models/adex.yml")
@@ -101,7 +97,6 @@ class TestModels(unittest.TestCase):
                 self.assertTrue(np.allclose(state, new_state))
         for tvals in adex_params:
             yield compare_reset, tvals['params'], tvals['forcing'], tvals['state']
-
 
     def test_adex_integration(self):
         pymodel = s.load_model("models/adex.yml")
@@ -123,24 +118,25 @@ class TestModels(unittest.TestCase):
         return X
 
 
-    nakl_params = [
-        {'params': [1., 120., 50., 20., -77., 0.3, -54.4,
-                    -40., 15., 0.1, 0.4, -40., 15., -60., -15.,
-                    1., 7., -60., -15., -55., 30., 1., 5., -55., -30.],
-         'forcing': [0.],
-         'state': [-70., 0., 0., 0.]},
-        {'params': [1., 120., 50., 20., -77., 0.3, -54.4,
-                    -40., 15., 0.1, 0.4, -40., 15., -60., -15.,
-                    1., 7., -60., -15., -55., 30., 1., 5., -55., -30.],
-         'forcing': [100.],
-         'state': [-70., 0., 0.2, 0.1]},
-        {'params': [1.02, 70.7, 55., .38, -85., 0.054, -65,
-                    -40., 15., 0.1, 0.4, -40., 15., -60., -15.,
-                    1., 7., -60., -15., -55., 30., 1., 5., -55., -30.],
-         'forcing': [0.],
-         'state': [-65., 0.1, 0.2, 0.1]},
-    ]
+nakl_params = [
+    {'params': [1., 120., 50., 20., -77., 0.3, -54.4,
+                -40., 15., 0.1, 0.4, -40., 15., -60., -15.,
+                1., 7., -60., -15., -55., 30., 1., 5., -55., -30.],
+     'forcing': [0.],
+     'state': [-70., 0., 0., 0.]},
+    {'params': [1., 120., 50., 20., -77., 0.3, -54.4,
+                -40., 15., 0.1, 0.4, -40., 15., -60., -15.,
+                1., 7., -60., -15., -55., 30., 1., 5., -55., -30.],
+     'forcing': [100.],
+     'state': [-70., 0., 0.2, 0.1]},
+    {'params': [1.02, 70.7, 55., .38, -85., 0.054, -65,
+                -40., 15., 0.1, 0.4, -40., 15., -60., -15.,
+                1., 7., -60., -15., -55., 30., 1., 5., -55., -30.],
+     'forcing': [0.],
+     'state': [-65., 0.1, 0.2, 0.1]},
+]
 
+class TestNaklModel(unittest.TestCase):
     def test_nakl_dxdt(self):
         pymodel = s.load_model("models/nakl.yml")
         nakl = s.load_module(pymodel, "models")
@@ -154,7 +150,7 @@ class TestModels(unittest.TestCase):
             yield compare_nakl, tvals['params'], tvals['forcing'], tvals['state']
 
 
-    def test_nakl_integration(I=50):
+    def test_nakl_integration(self, I=50):
         pymodel = s.load_model("models/nakl.yml")
         nakl = s.load_module(pymodel, "models")
         N = 10000
@@ -169,6 +165,7 @@ class TestModels(unittest.TestCase):
         return X
 
 
+class TestBiocmModel(unittest.TestCase):
     def test_biocm(self):
         pymodel = s.load_model("models/biocm.yml")
         biocm = s.load_module(pymodel, "models")
@@ -181,7 +178,7 @@ class TestModels(unittest.TestCase):
         self.assertTrue(np.allclose(dXdt, pydXdt))
 
 
-    def test_biocm_integration(I=20):
+    def test_biocm_integration(self, I=20):
         N = 5000
         dt = 0.05
         pymodel = s.load_model("models/biocm.yml")
