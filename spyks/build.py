@@ -174,6 +174,18 @@ def build_module(cppfile, name, path, **kwargs):
     log.info("%s: complete - extension module in %s/", name, path)
 
 
+def jit(model):
+    """Compile a model file into an extension module and load it.
+
+    Compilation can be quite slow for complex models, and this function doesn't
+    do any kind of caching, so it's more for illustration purposes.
+
+    """
+    import spyks.validate as spkv
+    spkv.check_symbols(model)
+    spkv.check_equations(model)
+
+
 def compile_script(argv=None):
     from spyks import __version__
     from spyks.core import load_model
