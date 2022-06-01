@@ -12,12 +12,6 @@ dimensional analysis; if units are not specified the quantity is assumed to be
 dimensionless. An array, on the other hand, does not have names or quantities.
 
 """
-# python 3 compatibility
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-from __future__ import unicode_literals
-
 import os
 import sympy as sp
 import pint as pq

@@ -1,12 +1,6 @@
 # -*- coding: utf-8 -*-
 # -*- mode: python -*-
 """Functions for interpreting and analyzing model output"""
-# python 3 compatibility
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-from __future__ import unicode_literals
-
 from spyks import core
 
 

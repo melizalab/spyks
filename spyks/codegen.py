@@ -10,12 +10,6 @@ model = simplify_equations(model)
 code = render(model)
 
 """
-# python 3 compatibility
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-from __future__ import unicode_literals
-
 import logging
 import sympy as sp
 from spyks._version import __version__

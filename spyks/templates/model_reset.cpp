@@ -85,15 +85,13 @@ PYBIND11_MODULE($name, m) {
         m.attr("name") = py::cast("$name");
         m.attr("__version__") = py::cast($version);
         py::class_<model>(m, "model")
-                 .def("__init__",
-                     [](model &m,
-                        py::array_t<value_type> params,
-                        py::array_t<value_type> forcing,
-                        time_type forcing_dt) {
+                .def(py::init([](py::array_t<value_type> params,
+                                 py::array_t<value_type> forcing,
+                                 time_type forcing_dt) {
                              auto pptr = static_cast<value_type const *>(params.data());
                              auto _forcing = interpolator(forcing, forcing_dt);
-                             new (&m) model(pptr, _forcing);
-                     })
+                             return new model(pptr, _forcing);
+                }))
                 .def("__call__", [](model const & m, model::state_type const & X, time_type t) {
                                 model::state_type out;
                                 m(X, out, t);
