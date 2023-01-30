@@ -8,6 +8,7 @@ def state_fun(model, state):
     """Create a lambda that will evaluate functions of the model state"""
     from spyks.codegen import state_replacements
     from spyks.validate import evalf
+
     repl = state_replacements(model)
     units = [v.units for n, v in model["state"]]
     context = {"X": [state[:, i] * u for i, u in enumerate(units)]}

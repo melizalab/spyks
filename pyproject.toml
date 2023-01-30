@@ -1,2 +1,9 @@
+[tool.isort]
+profile = "black"
+
+[tool.black]
+line-length = 88
+target-version = ['py310']
+
 [build-system]
 requires = ["setuptools", "wheel", "pybind11"]

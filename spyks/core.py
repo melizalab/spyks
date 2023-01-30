@@ -13,40 +13,41 @@ dimensionless. An array, on the other hand, does not have names or quantities.
 
 """
 import os
-import sympy as sp
+
 import pint as pq
+import sympy as sp
 
 # need a global unit registry in order for quantities to be compatible
 ureg = pq.UnitRegistry()
 
 
 def n_params(model):
-    """ Number of parameters in model """
+    """Number of parameters in model"""
     return len(model["parameters"])
 
 
 def n_state(model):
-    """ Number of state variables in model """
+    """Number of state variables in model"""
     return len(model["equations"])
 
 
 def n_forcing(model):
-    """ Number of forcing terms in model """
+    """Number of forcing terms in model"""
     return len(model["forcing"])
 
 
 def param_names(model):
-    """ Names of parameters in model """
+    """Names of parameters in model"""
     return tuple(n for n, v in model["parameters"])
 
 
 def state_names(model):
-    """ Names of state variables in model """
+    """Names of state variables in model"""
     return tuple(n for n, v in model["state"])
 
 
 def forcing_names(model):
-    """ Names of forcing terms in model """
+    """Names of forcing terms in model"""
     return tuple(n for n, v in model["forcing"])
 
 
@@ -69,21 +70,25 @@ def symbols(model):
 
 
 def to_array(mapping):
-    """ Converts named vector of quantities into a dimensionless array. """
+    """Converts named vector of quantities into a dimensionless array."""
     from numpy import fromiter
-    return fromiter((v.magnitude for k, v in mapping), dtype='d', count=len(mapping))
+
+    return fromiter((v.magnitude for k, v in mapping), dtype="d", count=len(mapping))
 
 
 def to_scaled_array(mapping):
-    """ Converts named vector of quantities into a dimensionless array. """
+    """Converts named vector of quantities into a dimensionless array."""
     from numpy import fromiter
-    return fromiter((v.to_base_units().magnitude for k, v in mapping), dtype='d', count=len(mapping))
+
+    return fromiter(
+        (v.to_base_units().magnitude for k, v in mapping), dtype="d", count=len(mapping)
+    )
 
 
 def to_mapping(array, mapping):
-    """ Binds values in array to names and units in mapping. Size of array must match mapping. """
+    """Binds values in array to names and units in mapping. Size of array must match mapping."""
     assert len(array) == len(mapping)
-    return [(k, x * getattr(v, 'units', v)) for  (k, v), x in zip(mapping, array) ]
+    return [(k, x * getattr(v, "units", v)) for (k, v), x in zip(mapping, array)]
 
 
 def parse_quantity(x):
@@ -98,6 +103,7 @@ class kinetic_ode(object):
 
     Initialize with alpha & beta or inf and tau expressions
     """
+
     _alpha = None
     _beta = None
     _inf = None
@@ -113,13 +119,15 @@ class kinetic_ode(object):
             self._inf = sp.sympify(eqns["inf"])
         if "tau" in eqns:
             self._tau = sp.sympify(eqns["tau"])
-        if not ((self._alpha is not None and self._beta is not None) or
-                (self._inf is not None and self._tau is not None)):
+        if not (
+            (self._alpha is not None and self._beta is not None)
+            or (self._inf is not None and self._tau is not None)
+        ):
             raise ValueError("must specify alpha/beta or inf/tau")
 
     @property
     def expr(self):
-        if (self._alpha is not None and self._beta is not None):
+        if self._alpha is not None and self._beta is not None:
             return self._alpha * (1 - self._var) - self._beta * self._var
         else:
             return (self._inf - self._var) / self._tau
@@ -141,7 +149,6 @@ class kinetic_ode(object):
         return self._beta or ((1 - self.inf) / self.tau)
 
 
-
 def parse_equation(n, s):
     """Parse equations of motion to sympy expression.
 
@@ -152,6 +159,7 @@ def parse_equation(n, s):
 
     """
     import ruamel.yaml as yaml
+
     try:
         if isinstance(s, (dict, yaml.comments.CommentedMap)):
             expr = kinetic_ode(n, **s).expr
@@ -164,32 +172,41 @@ def parse_equation(n, s):
 
 def parse(model):
     """Parse equations, variables, and parameters of model into sympy objects"""
-    from itertools import starmap
     from copy import copy
-    model['eqns_unparsed'] = copy(model['equations'])
-    model['equations'] = list(starmap(parse_equation, model['equations'].items()))
+    from itertools import starmap
+
+    model["eqns_unparsed"] = copy(model["equations"])
+    model["equations"] = list(starmap(parse_equation, model["equations"].items()))
     try:
         reset = model["reset"]
         reset["predicate"] = sp.sympify(reset["predicate"])
-        reset["state"] = [(sp.Symbol(n), sp.sympify(s)) for n,s in reset["state"].items()]
-        reset["clip"] = [(sp.Symbol(n), sp.sympify(s)) for n,s in reset["clip"].items()]
+        reset["state"] = [
+            (sp.Symbol(n), sp.sympify(s)) for n, s in reset["state"].items()
+        ]
+        reset["clip"] = [
+            (sp.Symbol(n), sp.sympify(s)) for n, s in reset["clip"].items()
+        ]
     except KeyError:
         pass
     # parse quantities and units
-    for k in ('parameters', 'forcing', 'state'):
+    for k in ("parameters", "forcing", "state"):
         if k in model:
-            model[k] = [(param, parse_quantity(value)) for param, value in model[k].items()]
+            model[k] = [
+                (param, parse_quantity(value)) for param, value in model[k].items()
+            ]
     return model
 
 
 def _mapping_updater(new):
     """Returns an f that updates mapping elements with values in new, converting units as needed"""
+
     def f(kv):
         n, v = kv
         if n in new:
             return (n, parse_quantity(new[n]).to(v.units))
         else:
             return (n, v)
+
     return f
 
 
@@ -203,6 +220,7 @@ def load_model(doc, load_base=True):
 
     """
     import ruamel.yaml as yaml
+
     if os.path.exists(doc):
         fname = doc
         fp = open(doc, "r")
@@ -215,13 +233,15 @@ def load_model(doc, load_base=True):
         if not load_base:
             raise ValueError("model extends %s but load_base is False" % model["base"])
         basefile = os.path.join(os.path.dirname(fname), model["base"] + ".yml")
-        base = load_model(basefile)              # will get parsed
-        if 'parameters' in model:
-            base['parameters'] = list(
-                map(_mapping_updater(dict(model['parameters'])), base['parameters']))
-        if 'state' in model:
-            base['state'] = list(
-                map(_mapping_updater(dict(model['state'])), base['state']))
+        base = load_model(basefile)  # will get parsed
+        if "parameters" in model:
+            base["parameters"] = list(
+                map(_mapping_updater(dict(model["parameters"])), base["parameters"])
+            )
+        if "state" in model:
+            base["state"] = list(
+                map(_mapping_updater(dict(model["state"])), base["state"])
+            )
         return base
     else:
         return parse(model)
@@ -239,12 +259,12 @@ def update_model(model, **kwargs):
 
 
 def get_param_value(model, name):
-    """ Return parameter value from model """
+    """Return parameter value from model"""
     return dict(model["parameters"]).get(name)
 
 
 def set_param_value(model, name, value):
-    """ Update parameter value in the model """
+    """Update parameter value in the model"""
     # this is somewhat clunky because the parameters are in a list, not a dict
     for i, (param, old) in enumerate(model["parameters"]):
         if param == name:
@@ -259,18 +279,25 @@ def load_module(model, path=None):
     sys.path. Raises an error if the name or version don't match.
 
     """
-    import sys
     import importlib
+    import sys
+
     if path is not None:
         sys.path.append(path)
     try:
         mdl = importlib.import_module(model["name"])
         if mdl.name != model["name"]:
-            raise ImportError("extension module name ({}) doesn't match model name ({})".format(mdl.name,
-                                                                                                model["name"]))
+            raise ImportError(
+                "extension module name ({}) doesn't match model name ({})".format(
+                    mdl.name, model["name"]
+                )
+            )
         if mdl.__version__ != model["version"]:
-            raise ImportError("extension module version ({}) doesn't match descriptor ({})".format(mdl.__version__,
-                                                                                                   model["version"]))
+            raise ImportError(
+                "extension module version ({}) doesn't match descriptor ({})".format(
+                    mdl.__version__, model["version"]
+                )
+            )
     finally:
         if path is not None:
             sys.path.remove(path)
@@ -296,7 +323,10 @@ def conductances(model):
     This function works by dividing out any arguments from currents that depend on the voltage
     """
     V = sp.Symbol("V")
-    return (sp.prod(t for t in term.args if V not in t.free_symbols) for term in currents(model))
+    return (
+        sp.prod(t for t in term.args if V not in t.free_symbols)
+        for term in currents(model)
+    )
 
 
 def conductance_names(model):

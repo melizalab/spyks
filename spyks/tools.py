@@ -2,15 +2,17 @@
 # -*- mode: python -*-
 """Tools for manipulating and fitting kinetic functions"""
 import numpy as np
+
 from spyks import core
 
 
 def ode_fun(model, var, fname="inf"):
-    """Create a lambda to evaluate var_\inf(V) or var_\tau(V) or var_\alpha(V) or var_\beta(V)"""
+    """Create a lambda to evaluate var_∞(V) or var_τ(V) or var_α(V) or var_β(V)"""
     from sympy import Symbol, lambdify
+
     ode = core.kinetic_ode(var, **model["eqns_unparsed"][var])
     context = {Symbol(n): v.magnitude for n, v in model["parameters"]}
-    return lambdify([Symbol('V')], getattr(ode, fname).subs(context))
+    return lambdify([Symbol("V")], getattr(ode, fname).subs(context))
 
 
 def tanh_inf(p, V):
@@ -20,17 +22,26 @@ def tanh_inf(p, V):
 
 def tanh_tau(p, V):
     tm0, tm1, vmt, dvmt = p[:4]
-    return (tm0 + tm1 * (1 - np.tanh((V - vmt)/dvmt)**2))
+    return tm0 + tm1 * (1 - np.tanh((V - vmt) / dvmt) ** 2)
 
 
 def tanh_tau2(p, V):
     tm0, tm1, vmt, dvmt1, tm2, dvmt2 = p[:6]
-    return (tm0 + (1 + tm1 * np.tanh((V - vmt)/dvmt1) * (1 - tm2 * np.tanh((V - vmt)/dvmt2))))
+    return tm0 + (
+        1 + tm1 * np.tanh((V - vmt) / dvmt1) * (1 - tm2 * np.tanh((V - vmt) / dvmt2))
+    )
 
 
 def tanh_tau3(p, V):
     tm0, tm1, vmt, dvmt, deltt = p[:6]
-    return (tm0 + deltt + 0.5 * (1 - np.tanh(V - vmt)) * tm1 * (1 - np.tanh((V - vmt) / dvmt)**2 - deltt))
+    return (
+        tm0
+        + deltt
+        + 0.5
+        * (1 - np.tanh(V - vmt))
+        * tm1
+        * (1 - np.tanh((V - vmt) / dvmt) ** 2 - deltt)
+    )
 
 
 def exp_inf(p, V):
@@ -40,8 +51,10 @@ def exp_inf(p, V):
 
 def exp_tau(p, V):
     nam_t0, nam_t1, nam_tv, nam_tdv1, nam_t2, nam_tdv2 = p[:6]
-    return (nam_t0 + 1/(nam_t1 * np.exp((V - nam_tv) / nam_tdv1) +
-                        nam_t2 * np.exp(-(V - nam_tv) / nam_tdv2)))
+    return nam_t0 + 1 / (
+        nam_t1 * np.exp((V - nam_tv) / nam_tdv1)
+        + nam_t2 * np.exp(-(V - nam_tv) / nam_tdv2)
+    )
 
 
 def refit_kinetics(V, modelfun, candidatefun, p0):
@@ -57,5 +70,7 @@ def refit_kinetics(V, modelfun, candidatefun, p0):
     p0 - initial parameter guess
     """
     from scipy import optimize
-    errf = lambda p, x, y: candidatefun(p, x) - y
-    return optimize.leastsq(errf, p0[:], args=(V, modelfun(V)))
+
+    return optimize.leastsq(
+        lambda p, x, y: candidatefun(p, x) - y, p0[:], args=(V, modelfun(V))
+    )

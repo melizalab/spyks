@@ -10,10 +10,13 @@ model = simplify_equations(model)
 code = render(model)
 
 """
+
 import logging
+
 import sympy as sp
+
 from spyks._version import __version__
-from spyks.core import n_params, n_state, n_forcing
+from spyks.core import n_forcing, n_params, n_state
 
 value_type = "double"
 param_var = "p"
@@ -22,13 +25,14 @@ deriv_var = "dXdt"
 forcing_var = "forcing"
 time_var = "t"
 
-log = logging.getLogger('spyks')   # root logger
+log = logging.getLogger("spyks")  # root logger
 
 
 def simplify_equations(model):
     from copy import copy
+
     m = copy(model)
-    m['equations'] = [(n, expr.simplify()) for n, expr in model['equations']]
+    m["equations"] = [(n, expr.simplify()) for n, expr in model["equations"]]
     return m
 
 
@@ -82,28 +86,32 @@ def fmt_systemf(model):
     if len(model["forcing"]) == 1:
         forcing_s = fmt_forcing_1d(model["forcing"][0][0])
     else:
-        forcing_s = "\n".join(fmt_forcing_nd(i, s)
-                              for i, (s, v) in enumerate(model["forcing"]))
+        forcing_s = "\n".join(
+            fmt_forcing_nd(i, s) for i, (s, v) in enumerate(model["forcing"])
+        )
     log.info("%s: eliminating common subexpressions", model["name"])
     subs, exprs = sp.cse(expr for n, expr in model["equations"])
     subs_s = "\n".join(fmt_subst(n, expr.subs(repl)) for n, expr in subs)
     expr_s = "\n".join(fmt_dx(i, expr.subs(repl)) for i, expr in enumerate(exprs))
-    return {
-        "forcing": forcing_s,
-        "substitutions": subs_s,
-        "system": expr_s
-    }
+    return {"forcing": forcing_s, "substitutions": subs_s, "system": expr_s}
 
 
 def fmt_resetf(model):
-    if "reset" not in model: return {}
+    if "reset" not in model:
+        return {}
     repl = symbol_replacements(model)
     out = {
-        "reset_predicate": sp.ccode(model['reset']['predicate'].subs(repl)),
-        "reset_state": "\n".join(fmt_reset(n.subs(repl), expr.subs(repl)) for n, expr in model['reset']['state'])
+        "reset_predicate": sp.ccode(model["reset"]["predicate"].subs(repl)),
+        "reset_state": "\n".join(
+            fmt_reset(n.subs(repl), expr.subs(repl))
+            for n, expr in model["reset"]["state"]
+        ),
     }
     try:
-        out["clip"] = "\n".join(fmt_clip(n.subs(repl), expr.subs(repl)) for n, expr in model['reset']['clip'])
+        out["clip"] = "\n".join(
+            fmt_clip(n.subs(repl), expr.subs(repl))
+            for n, expr in model["reset"]["clip"]
+        )
     except KeyError:
         pass
     return out
@@ -111,33 +119,42 @@ def fmt_resetf(model):
 
 def get_resource(name):
     import posixpath as pp
+
     import pkg_resources
-    return pkg_resources.resource_string("spyks", pp.join("templates", name)).decode("utf-8")
+
+    return pkg_resources.resource_string("spyks", pp.join("templates", name)).decode(
+        "utf-8"
+    )
 
 
 def render(model):
     import string
+
     if "reset" in model:
         template = "model_reset.cpp"
     else:
         template = "model_continuous.cpp"
 
-    context = dict(spyks_version=__version__,
-                   name=model["name"],
-                   descr=model["description"],
-                   version=model.get("version", "SNAPSHOT"))
+    context = dict(
+        spyks_version=__version__,
+        name=model["name"],
+        descr=model["description"],
+        version=model.get("version", "SNAPSHOT"),
+    )
 
-    head_tmpl=string.Template(get_resource("head.cpp"))
+    head_tmpl = string.Template(get_resource("head.cpp"))
 
-    context.update(head=head_tmpl.substitute(context),
-                   n_param=n_params(model),
-                   n_state=n_state(model),
-                   n_forcing=n_forcing(model),
-                   param_var=param_var,
-                   forcing_var=forcing_var,
-                   state_var=state_var,
-                   deriv_var=deriv_var,
-                   time_var=time_var)
+    context.update(
+        head=head_tmpl.substitute(context),
+        n_param=n_params(model),
+        n_state=n_state(model),
+        n_forcing=n_forcing(model),
+        param_var=param_var,
+        forcing_var=forcing_var,
+        state_var=state_var,
+        deriv_var=deriv_var,
+        time_var=time_var,
+    )
     context.update(fmt_systemf(model))
     context.update(fmt_resetf(model))
 
