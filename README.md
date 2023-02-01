@@ -1,6 +1,5 @@
 # spyks
 
-[![Build Status](https://travis-ci.org/melizalab/spyks.png?branch=master)](https://travis-ci.org/melizalab/spyks)
 [![DOI](https://zenodo.org/badge/102205384.svg)](https://zenodo.org/badge/latestdoi/102205384)
 
 spyks is a tool for building and simulating simple, dynamical neuron models. It places a strong emphasis on efficient modification of parameters, because it's primarily intended for use in data assimilation applications where the goal is to estimate parameters and unmeasured states from recorded data. It is very much a work in progress.
@@ -99,7 +98,7 @@ for i in range(100):
 	
 ```
 
-Note that the state at each new step has to be passed to the `step()` method. The integrator and system function only do runtime checking on the bounds of the forcing array.
+Note that the `step()` method returns the new state, which has to be saved and then passed back for the next step . The integrator and system function only do runtime checking on the bounds of the forcing array.
 
 ### Installation Notes
 
