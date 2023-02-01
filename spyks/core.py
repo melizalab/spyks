@@ -219,16 +219,17 @@ def load_model(doc, load_base=True):
     ValueError.
 
     """
-    import ruamel.yaml as yaml
+    from ruamel.yaml import YAML
 
+    yaml = YAML(typ="safe")
     if os.path.exists(doc):
         fname = doc
         fp = open(doc, "r")
-        model = yaml.load(fp, yaml.RoundTripLoader)
+        model = yaml.load(fp)
         fp.close()
     else:
         fname = ""
-        model = yaml.load(doc, yaml.RoundTripLoader)
+        model = yaml.load(doc)
     if "base" in model:
         if not load_base:
             raise ValueError("model extends %s but load_base is False" % model["base"])
