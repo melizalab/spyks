@@ -21,7 +21,11 @@ inline constexpr T pow(T x, std::size_t n){
 }
 
 namespace spyks {
-
+	
+// Nearest neighbor interpolator. Given a discretely sampled time series over
+// [0, T) with a sampling interval of dt, returns the value closest to any input
+// time t. Returns zero for all t < 0 and the last value in the time series for
+// t >= T
 template <typename value_t, typename time_t>
 struct nn_interpolator {
         typedef value_t value_type;
@@ -29,10 +33,18 @@ struct nn_interpolator {
         typedef typename py::array_t<value_type> array_type;
 
         nn_interpolator(array_type data, time_type dt)
-                : data(data), dt(dt), N(data.shape(0)) {}
+                : data(data), dt(dt), N(data.shape(0)) {
+		py::buffer_info buf = data.request();
+		if (buf.ndim == 1) {
+			data.resize({buf.shape[0], 1L});
+		} else if (buf.ndim > 2) {
+			throw std::runtime_error("array must have 2 dimensions or fewer");
+		}
+	}
 
         template<typename... Ix> value_type operator()(time_type t, Ix... idx) const {
-                // TODO avoid numpy bounds check
+                // TODO avoid numpy bounds check. There is an unchecked proxy
+                // but I'm not sure how to hold a reference to it in the struct
                 return data.at(index_at(t), idx...);
         }
         size_t index_at(time_type t) const {
@@ -40,6 +52,9 @@ struct nn_interpolator {
                 size_t i = std::round(t / dt);
                 return std::min(i, N - 1);
         }
+	time_type get_max_time() const {
+		return data.shape(0) * dt;
+	}
 
         array_type data;
         time_type dt;

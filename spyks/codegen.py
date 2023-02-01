@@ -67,9 +67,9 @@ def fmt_forcing_nd(i, s):
     return templ.format(value_type, s, forcing_var, time_var, i)
 
 
-def fmt_forcing_1d(s):
-    templ = "const {} {} = {}({});"
-    return templ.format(value_type, s, forcing_var, time_var)
+# def fmt_forcing_1d(s):
+#     templ = "const {} {} = {}({});"
+#     return templ.format(value_type, s, forcing_var, time_var)
 
 
 def fmt_reset(n, expr):
@@ -83,12 +83,12 @@ def fmt_clip(n, expr):
 def fmt_systemf(model):
     """Produces c code from expressions, applying cse"""
     repl = symbol_replacements(model)
-    if len(model["forcing"]) == 1:
-        forcing_s = fmt_forcing_1d(model["forcing"][0][0])
-    else:
-        forcing_s = "\n".join(
-            fmt_forcing_nd(i, s) for i, (s, v) in enumerate(model["forcing"])
-        )
+    # if len(model["forcing"]) == 1:
+    #     forcing_s = fmt_forcing_1d(model["forcing"][0][0])
+    # else:
+    forcing_s = "\n".join(
+        fmt_forcing_nd(i, s) for i, (s, v) in enumerate(model["forcing"])
+    )
     log.info("%s: eliminating common subexpressions", model["name"])
     subs, exprs = sp.cse(expr for n, expr in model["equations"])
     subs_s = "\n".join(fmt_subst(n, expr.subs(repl)) for n, expr in subs)

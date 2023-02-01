@@ -19,8 +19,10 @@ passive_params = [
 
 
 class TestPassiveModel(unittest.TestCase):
+    _model_file = "models/passive_ei.yml"
+
     def test_passive_ei_deriv(self):
-        pymodel = s.load_model("models/passive_ei.yml")
+        pymodel = s.load_model(self._model_file)
         passive_ei = s.load_module(pymodel, "models")
 
         def compare(params, forcing, state):
@@ -34,19 +36,15 @@ class TestPassiveModel(unittest.TestCase):
             yield compare, tvals["params"], tvals["forcing"], tvals["state"]
 
     def test_passive_ei_integration(self):
-        pymodel = s.load_model("models/passive_ei.yml")
-        passive_ei = s.load_module(pymodel, "models")
+        pymodel = s.load_model(self._model_file)
         g_ex = 1.0
         g_inh = 0.5
         N = 2000
         dt = 0.05
-        params = s.to_array(pymodel["parameters"])
         forcing = np.column_stack([np.ones(N) * g_ex, np.ones(N) * g_inh])
-        x0 = s.to_array(pymodel["state"])
-        model = passive_ei.model(params, forcing, dt)
-        X = passive_ei.integrate(params, x0, forcing, dt, dt)
-        X2 = passive_ei.integrate(model, x0, N * dt, dt)
-        self.assertTrue(np.allclose(X, X2))
+        model = s.make_model(pymodel, forcing, dt, "models")
+        state = s.to_array(pymodel["state"])
+        X = model.integrate(state, dt)
         # steady-state V should be a weighted average of the reversal potentials
         g_l = s.get_param_value(pymodel, "g_l")
         Evals = [s.get_param_value(pymodel, n) for n in ("E_l", "E_ex", "E_inh")]
@@ -54,6 +52,29 @@ class TestPassiveModel(unittest.TestCase):
         V_steady = sum(g * e for e, g in zip(Evals, gvals)) / sum(gvals)
         events = (X[:, 0] > 29.9).nonzero()[0]
         self.assertAlmostEqual(V_steady.magnitude, X[-1, 0], places=2)
+        self.assertEqual(len(events), 0)
+
+    def test_passive_ei_step(self):
+        pymodel = s.load_model(self._model_file)
+        dt = 0.05
+        forcing = [[0.0, 0.0]]
+        model = s.make_model(pymodel, forcing, dt)
+        state_0 = [-70.0]
+        state_1 = model.step(state_0, 0, dt)
+        # model should remain at equilibrium
+        self.assertAlmostEqual(state_0[0], state_1[0])
+        # add some excitation to the forcing
+        model.update_forcing([[1.0, 0.0]], dt)
+        state_2 = model.step(state_1, 0, dt)
+        self.assertGreater(state_2[0], state_1[0])
+
+    @unittest.skip(reason="bounds checking not yet implemented")
+    def test_wrong_forcing_shape(self):
+        pymodel = s.load_model(self._model_file)
+        dt = 0.05
+        forcing = [[0.0]]
+        with self.assertRaises(Exception):
+            model = s.make_model(pymodel, forcing, dt)
 
 
 adex_params = [
@@ -112,22 +133,17 @@ class TestAdExModel(unittest.TestCase):
 
     def test_adex_integration(self):
         pymodel = s.load_model("models/adex.yml")
-        adex = s.load_module(pymodel, "models")
         Iinj = 500
         N = 1000
         dt = 0.05
-        params = adex_params[0]["params"]
         x0 = adex_params[0]["state"]
-        data = np.ones(N) * Iinj
-        model = adex.model(params, data, dt)
-        X = adex.integrate(params, x0, data, dt, dt)
-        X2 = adex.integrate(model, x0, data.size * dt, dt)
-        self.assertTrue(np.allclose(X, X2))
+        forcing = np.ones(N) * Iinj
+        model = s.make_model(pymodel, forcing, dt, "models")
+        X = model.integrate(x0, dt)
         # with these parameters, there should be exactly one spike at 555
         events = (X[:, 0] > 29.9).nonzero()[0]
         self.assertEqual(events.size, 1)
         self.assertEqual(events[0], 555)
-        return X
 
 
 nakl_params = [
@@ -244,17 +260,13 @@ class TestNaklModel(unittest.TestCase):
 
     def test_nakl_integration(self, Iinj=50):
         pymodel = s.load_model("models/nakl.yml")
-        nakl = s.load_module(pymodel, "models")
         N = 10000
         dt = 0.05
-        params = nakl_params[0]["params"]
+        forcing = np.ones(N) * Iinj
+        model = s.make_model(pymodel, forcing, dt, "models")
         x0 = nakl_params[0]["state"]
-        data = np.ones(N) * Iinj
-        model = nakl.model(params, data, dt)
-        X = nakl.integrate(params, x0, data, dt, dt)
-        X2 = nakl.integrate(model, x0, data.size * dt, dt)
-        self.assertTrue(np.allclose(X, X2))
-        return X
+        X = model.integrate(x0, dt)
+        self.assertEqual(X.shape, (N, len(x0)))
 
 
 class TestBiocmModel(unittest.TestCase):
@@ -270,15 +282,25 @@ class TestBiocmModel(unittest.TestCase):
         self.assertTrue(np.allclose(dXdt, pydXdt))
 
     def test_biocm_integration(self, Iinj=20):
+        pymodel = s.load_model("models/biocm.yml")
         N = 5000
         dt = 0.05
-        pymodel = s.load_model("models/biocm.yml")
-        biocm = s.load_module(pymodel, "models")
-        params = s.to_array(pymodel["parameters"])
         x0 = s.to_array(pymodel["state"])
-        data = np.ones(N) * Iinj
-        model = biocm.model(params, data, dt)
-        X = biocm.integrate(params, x0, data, dt, dt)
-        X2 = biocm.integrate(model, x0, data.size * dt, dt)
-        self.assertTrue(np.allclose(X, X2))
-        return X
+        forcing = np.ones(N) * Iinj
+        model = s.make_model(pymodel, forcing, dt)
+        X = model.integrate(x0, dt)
+        self.assertEqual(X.shape, (N, len(x0)))
+
+    def test_biocm_step(self, Iinj=20):
+        pymodel = s.load_model("models/biocm.yml")
+        N = 5000
+        dt = 0.05
+        forcing = [0]
+        model = s.make_model(pymodel, forcing, dt)
+        state_0 = s.to_array(pymodel["state"])
+        state_1 = model.step(state_0, 0.0, dt)
+        # not exactly at equilibrium
+        self.assertAlmostEqual(state_0[0], state_1[0], places=2)
+        model.update_forcing([Iinj], dt)
+        state_2 = model.step(state_1, 0.0, dt)
+        self.assertGreater(state_2[0], state_1[0])

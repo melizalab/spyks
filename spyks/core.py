@@ -304,6 +304,13 @@ def load_module(model, path=None):
     return mdl
 
 
+def make_model(model, forcing, forcing_dt, path=None):
+    """Instantiates the extension module class for model with specified forcing"""
+    module = load_module(model, path)
+    params = to_array(model["parameters"])
+    return module.model(params, forcing, forcing_dt)
+
+
 def currents(model):
     """Extract intrinsic current terms from the model
 

@@ -10,8 +10,10 @@ struct $name {
         typedef T value_type;
         typedef typename std::array<value_type, N_STATE> state_type;
         typedef typename interpolator_type::time_type time_type;
+	// parameters are stored in a C array to keep access fast
         value_type const * $param_var;
         interpolator_type $forcing_var;
+	ode::runge_kutta_dopri5<state_type> stepper;
 
         $name (value_type const * p, interpolator_type f)
              : $param_var(p), $forcing_var(f) {}
@@ -25,59 +27,58 @@ struct $name {
         }
 };
 
-template<typename Model>
-py::array
-integrate(Model & model, py::array_t<typename Model::value_type> x0, double tmax, double dt)
-{
-        typedef typename Model::state_type state_type;
-        state_type x;
-        std::copy_n(x0.data(), Model::N_STATE, x.begin());
-        size_t nsteps = ceil(tmax / dt);
-        auto obs = pyarray_dense<Model>(nsteps);
-        // auto stepper = ode::runge_kutta4<state_type>();
-        // ode::integrate_const(stepper, std::ref(model), x, 0.0, tmax, dt, obs);
-        auto stepper = ode::runge_kutta_dopri5<state_type>();
-        ode::integrate_const(ode::make_dense_output(1.0e-5, 1.0e-5, stepper),
-                             std::ref(model), x, 0.0, tmax, dt, obs);
-        return obs.X;
-}
-
-}
-
+} // namespace spyks
 
 PYBIND11_MODULE($name, m) {
         typedef double value_type;
         typedef double time_type;
-        typedef spyks::nn_interpolator<value_type, time_type> interpolator;
-        typedef spyks::$name<value_type, interpolator> model;
+        typedef spyks::nn_interpolator<value_type, time_type> interpolator_type;
+        typedef spyks::$name<value_type, interpolator_type> model_type;
+	typedef model_type::state_type state_type;
         m.doc() = "$descr";
         m.attr("name") = py::cast("$name");
         m.attr("__version__") = py::cast($version);
-        py::class_<model>(m, "model")
+        py::class_<model_type>(m, "model")
                 .def(py::init([](py::array_t<value_type> params,
                                  py::array_t<value_type> forcing,
-                                 time_type forcing_dt) {
-                             // TODO: check forcing dimensions and shape
+                                 time_type forcing_dt)
+			{
                              auto pptr = static_cast<value_type const *>(params.data());
-                             auto _forcing = interpolator(forcing, forcing_dt);
-                             return new model(pptr, _forcing);
-                }))
-                .def("__call__", [](model const & m, model::state_type const & X, time_type t) {
-                                model::state_type out;
-                                m(X, out, t);
-                                return out;
-                        });
-        m.def("integrate", [](py::array_t<value_type> params,
-                              py::array_t<value_type> x0,
-                              py::array_t<value_type> forcing,
-                              time_type forcing_dt, time_type stepping_dt) -> py::array {
-                      auto pptr = static_cast<value_type const *>(params.data());
-                      time_type tmax = forcing.shape(0) * forcing_dt;
-                      auto _forcing = interpolator(forcing, forcing_dt);
-                      model model(pptr, _forcing);
-                      return spyks::integrate(model, x0, tmax, stepping_dt);
-              },
-              "Integrates model from starting state x0 over the duration of the forcing timeseries",
-              "params"_a, "x0"_a, "forcing"_a, "forcing_dt"_a, "stepping_dt"_a);
-        m.def("integrate", &spyks::integrate<model>);
+                             auto _forcing = interpolator_type(forcing, forcing_dt);
+                             return new model_type(pptr, _forcing);
+			}),
+		     "Instantiate a new model_type with parameters and external forcing",
+		     "params"_a, "forcing"_a, "forcing_dt"_a)
+                .def("__call__",
+		     [](model_type const & m, state_type const & X, time_type t) {
+			     state_type out;
+			     m(X, out, t);
+			     return out;
+		     },
+		     "Compute the system function given state X at time t",
+		     "state"_a, "time"_a)
+		.def("update_forcing",
+		     [](model_type & model, py::array_t<value_type> forcing, time_type forcing_dt) {
+                             model.forcing = interpolator_type(forcing, forcing_dt);
+		     },
+		     "Update the forcing for the model")
+		.def("step",
+		     [](model_type & model, state_type state, time_type t, time_type dt) {
+			     model.stepper.do_step(std::ref(model), state, t, dt);
+			     return state;
+		     },
+		     "Iterate the model_type one step from state x at time t. The stepper may retain information "
+		     "about the derivative between calls, so the model should be reinitialized for a totally new input.",
+		     "state"_a, "time"_a, "step"_a)
+		.def("integrate",
+		     [](model_type & model, state_type state, time_type dt) {
+			     time_type tmax = model.forcing.get_max_time();
+			     size_t nsteps = ceil(tmax / dt);
+			     auto obs = spyks::pyarray_dense<model_type>(nsteps);
+			     auto dense_stepper = ode::make_dense_output(1.0e-5, 1.0e-5, model.stepper);
+			     ode::integrate_const(dense_stepper, std::ref(model), state, 0.0, tmax, dt, obs);
+			     return obs.X;
+		     },
+		     "Integrates model from state(t=0) through the duration of the forcing timeseries",
+		     "state"_a, "step"_a);
 }

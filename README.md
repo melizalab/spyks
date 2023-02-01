@@ -65,24 +65,41 @@ Other examples are in the `models` directory. To compile this model into a Pytho
 
 Important: although spyks will do basic dimensional analysis to ensure that your parameters, equations, and state variables all have compatible dimensions, it currently cannot make sure that your parameters are scaled correctly. Capacitances have to be in `pF`, voltages in `mV`, conductances in `nS`, and times in `ms`. So for example, although you ought to be able to put in `0.25 nF` in the model descriptor above, you'll wind up with a 0.25 pF cell. Working on it.
 
-In Python:
+To integrate the model in Python using a pre-determined injected current:
 
 ``` Python
 import numpy as np
 import spyks.core as spk
 
-pymodel = spk.load_model("models/nakl.yml")
-nakl = spk.load_module(pymodel, "models")
-params = spk.to_array(pymodel['parameters'])
-initial_state = spk.to_array(pymodel['state'])
-
 Iinj = np.zeros(10000)
 Iinj[2000:] = 50
 dt = 0.05
 
-X = nakl.integrate(params, initial_state, Iinj, dt, dt)
+pymodel = spk.load_model("models/nakl.yml")
+nakl = spk.make_model(pymodel, forcing=Iinj, forcing_dt=dt, path="models")
+
+initial_state = spk.to_array(pymodel['state'])
+X = nakl.integrate(initial_state, step=dt)
 
 ```
+
+If the inject current is not know ahead of time (e.g. for control problems), you can also integrate iteratively:
+
+``` Python
+
+nakl = spk.make_model(pymodel, forcing=[0.0], forcing_dt=dt, path="models")
+state = spk.to_array(pymodel['state'])
+out = [state]
+# this will ramp up the injected current but obviously this can be a more complex computation
+for i in range(100):
+	forcing = [float(i) * 5]
+	nakl.update_forcing(forcing, dt)
+	state = nakl.step(state, time=i * dt, step=dt)
+	out.append(state)
+	
+```
+
+Note that the state at each new step has to be passed to the `step()` method. The integrator and system function only do runtime checking on the bounds of the forcing array.
 
 ### Installation Notes
 
